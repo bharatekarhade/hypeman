@@ -1,0 +1,874 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0BB1578008F82B273E406BBB /* HypemanKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6D7551D98269035F61F59EE0 /* HypemanKit */; };
+		5FC7F8C6D7BE563327DCC4F4 /* HypemanKit in Frameworks */ = {isa = PBXBuildFile; productRef = 042E01B63B12895FD2173058 /* HypemanKit */; };
+		34564F890F887409A9A9E0B2 /* HypemanKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8789756918E2B398111DE0EF /* HypemanKit */; };
+		BC4FC8012C72DF91498BA5A2 /* HypemanKit in Frameworks */ = {isa = PBXBuildFile; productRef = F6FDA24FCA22A5F7ADFFF762 /* HypemanKit */; };
+		5623084DDF4CA35D74237B29 /* HypemanKit in Frameworks */ = {isa = PBXBuildFile; productRef = C5100B70BC457238F4CA7021 /* HypemanKit */; };
+		4190552573BC19C6405AD75B /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 296AFB18AB76BF6D5E1C9F2C /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		23CA4FEF4F5EC2F46EABBD5F /* ActivityMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F5AFDA18A441E56B4CEF6D1C /* ActivityMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D13CCCB6BF30A2CC3A4A5C94 /* ShieldConfig.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C161E7688443207FA52EC83B /* ShieldConfig.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D76A5B635FAF01586B32A66C /* ShieldAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8FBAECD6E3E402A323248A70 /* ShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0FB6ACF068412D5D290491B7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CF643A2902922A145FCE196F;
+			remoteInfo = Widgets;
+		};
+		FC93B03CB5DC75FFC6318167 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 66CEF77B215E055F422D79B9;
+			remoteInfo = ActivityMonitor;
+		};
+		E5A5B917EE51A95A335512B4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BD7EB293AB9EAC6349A8554B;
+			remoteInfo = ShieldConfig;
+		};
+		FDB2FDD43255BFBEF9E1C2FE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B65540555DDE4AA297D1EA61;
+			remoteInfo = ShieldAction;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		425893CE4AEDF359C5F0F0D7 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				4190552573BC19C6405AD75B /* Widgets.appex in Embed Foundation Extensions */,
+				23CA4FEF4F5EC2F46EABBD5F /* ActivityMonitor.appex in Embed Foundation Extensions */,
+				D13CCCB6BF30A2CC3A4A5C94 /* ShieldConfig.appex in Embed Foundation Extensions */,
+				D76A5B635FAF01586B32A66C /* ShieldAction.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		70512AF6FF55A6819F5957B8 /* Hypeman.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hypeman.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		296AFB18AB76BF6D5E1C9F2C /* Widgets.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F5AFDA18A441E56B4CEF6D1C /* ActivityMonitor.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = ActivityMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		C161E7688443207FA52EC83B /* ShieldConfig.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = ShieldConfig.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8FBAECD6E3E402A323248A70 /* ShieldAction.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = ShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7BF25D0604E2CBF73996DE9B /* Exceptions for "Hypeman" folder in "Hypeman" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Hypeman.entitlements,
+			);
+			target = 82C441DC124AD3642A1459C8 /* Hypeman */;
+		};
+		B86F5CD4C1CAE21CB0DFDD4F /* Exceptions for "Widgets" folder in "Widgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Widgets.entitlements,
+				Info.plist,
+			);
+			target = CF643A2902922A145FCE196F /* Widgets */;
+		};
+		94C15002986CE0B759ED9050 /* Exceptions for "ActivityMonitor" folder in "ActivityMonitor" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ActivityMonitor.entitlements,
+				Info.plist,
+			);
+			target = 66CEF77B215E055F422D79B9 /* ActivityMonitor */;
+		};
+		943DACA94A4050C07485D6D7 /* Exceptions for "ShieldConfig" folder in "ShieldConfig" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ShieldConfig.entitlements,
+				Info.plist,
+			);
+			target = BD7EB293AB9EAC6349A8554B /* ShieldConfig */;
+		};
+		BECCB64C6473F1E576DB4E0C /* Exceptions for "ShieldAction" folder in "ShieldAction" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ShieldAction.entitlements,
+				Info.plist,
+			);
+			target = B65540555DDE4AA297D1EA61 /* ShieldAction */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		7676FB1AA2E62CE79FA309B9 /* Hypeman */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7BF25D0604E2CBF73996DE9B /* Exceptions for "Hypeman" folder in "Hypeman" target */,
+			);
+			path = Hypeman;
+			sourceTree = "<group>";
+		};
+		CA8178CE1EBEA674C2B38EDA /* Widgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B86F5CD4C1CAE21CB0DFDD4F /* Exceptions for "Widgets" folder in "Widgets" target */,
+			);
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		29F24D700BF099F29D0ACF79 /* ActivityMonitor */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				94C15002986CE0B759ED9050 /* Exceptions for "ActivityMonitor" folder in "ActivityMonitor" target */,
+			);
+			path = ActivityMonitor;
+			sourceTree = "<group>";
+		};
+		A87B6BEB48D7B12FC9D82456 /* ShieldConfig */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				943DACA94A4050C07485D6D7 /* Exceptions for "ShieldConfig" folder in "ShieldConfig" target */,
+			);
+			path = ShieldConfig;
+			sourceTree = "<group>";
+		};
+		FC0849E2FDF22B35A7DF9C25 /* ShieldAction */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BECCB64C6473F1E576DB4E0C /* Exceptions for "ShieldAction" folder in "ShieldAction" target */,
+			);
+			path = ShieldAction;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		32C5BC25381D37FBF73E2FBC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0BB1578008F82B273E406BBB /* HypemanKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		39AFB1D8DDB8B203BD654B6B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5FC7F8C6D7BE563327DCC4F4 /* HypemanKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BECC8909846A48B7873FDB5F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				34564F890F887409A9A9E0B2 /* HypemanKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A45AA41B51DDC09D2979BFA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BC4FC8012C72DF91498BA5A2 /* HypemanKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1B01F18BC710A94398FD0ADB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5623084DDF4CA35D74237B29 /* HypemanKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2B731CEFC6751AAE0EC69B98 = {
+			isa = PBXGroup;
+			children = (
+				7676FB1AA2E62CE79FA309B9 /* Hypeman */,
+				CA8178CE1EBEA674C2B38EDA /* Widgets */,
+				29F24D700BF099F29D0ACF79 /* ActivityMonitor */,
+				A87B6BEB48D7B12FC9D82456 /* ShieldConfig */,
+				FC0849E2FDF22B35A7DF9C25 /* ShieldAction */,
+				0A2C978E52A76F0AA9F68BB5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		0A2C978E52A76F0AA9F68BB5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				70512AF6FF55A6819F5957B8 /* Hypeman.app */,
+				296AFB18AB76BF6D5E1C9F2C /* Widgets.appex */,
+				F5AFDA18A441E56B4CEF6D1C /* ActivityMonitor.appex */,
+				C161E7688443207FA52EC83B /* ShieldConfig.appex */,
+				8FBAECD6E3E402A323248A70 /* ShieldAction.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		82C441DC124AD3642A1459C8 /* Hypeman */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EA7B0CAF91C1DF59C8F569F1 /* Build configuration list for PBXNativeTarget "Hypeman" */;
+			buildPhases = (
+				98417A0744B09D67A6ACC0B7 /* Sources */,
+				32C5BC25381D37FBF73E2FBC /* Frameworks */,
+				A8CBA10E353456FA95A212EF /* Resources */,
+				425893CE4AEDF359C5F0F0D7 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				277E0A4787741EBB0E223C11 /* PBXTargetDependency */,
+				3FFF67E324AC65D4C682B17D /* PBXTargetDependency */,
+				638D3F3AC6EE70305B21FED0 /* PBXTargetDependency */,
+				CAD09855F9D78556D5EC6CF5 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7676FB1AA2E62CE79FA309B9 /* Hypeman */,
+			);
+			name = Hypeman;
+			packageProductDependencies = (
+				6D7551D98269035F61F59EE0 /* HypemanKit */,
+			);
+			productName = Hypeman;
+			productReference = 70512AF6FF55A6819F5957B8 /* Hypeman.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CF643A2902922A145FCE196F /* Widgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 06C086F5F4B74FCB6E1F72E4 /* Build configuration list for PBXNativeTarget "Widgets" */;
+			buildPhases = (
+				F2C798B8193C89FDC8F5CB3A /* Sources */,
+				39AFB1D8DDB8B203BD654B6B /* Frameworks */,
+				ECF3936FEF6FE1162D2C4678 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CA8178CE1EBEA674C2B38EDA /* Widgets */,
+			);
+			name = Widgets;
+			packageProductDependencies = (
+				042E01B63B12895FD2173058 /* HypemanKit */,
+			);
+			productName = Widgets;
+			productReference = 296AFB18AB76BF6D5E1C9F2C /* Widgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		66CEF77B215E055F422D79B9 /* ActivityMonitor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2071E0C2F268FA9BD9F2CE97 /* Build configuration list for PBXNativeTarget "ActivityMonitor" */;
+			buildPhases = (
+				43F444EDC73BDDCF98E84143 /* Sources */,
+				BECC8909846A48B7873FDB5F /* Frameworks */,
+				A00FF73611B09598D1F11076 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				29F24D700BF099F29D0ACF79 /* ActivityMonitor */,
+			);
+			name = ActivityMonitor;
+			packageProductDependencies = (
+				8789756918E2B398111DE0EF /* HypemanKit */,
+			);
+			productName = ActivityMonitor;
+			productReference = F5AFDA18A441E56B4CEF6D1C /* ActivityMonitor.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		BD7EB293AB9EAC6349A8554B /* ShieldConfig */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3AD5B59F7FA0A9B5C0E646F1 /* Build configuration list for PBXNativeTarget "ShieldConfig" */;
+			buildPhases = (
+				C4A75451896BFD3ABA5E2279 /* Sources */,
+				9A45AA41B51DDC09D2979BFA /* Frameworks */,
+				D2D438805371BEF69D715482 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A87B6BEB48D7B12FC9D82456 /* ShieldConfig */,
+			);
+			name = ShieldConfig;
+			packageProductDependencies = (
+				F6FDA24FCA22A5F7ADFFF762 /* HypemanKit */,
+			);
+			productName = ShieldConfig;
+			productReference = C161E7688443207FA52EC83B /* ShieldConfig.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		B65540555DDE4AA297D1EA61 /* ShieldAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 872976001E41033509E2641C /* Build configuration list for PBXNativeTarget "ShieldAction" */;
+			buildPhases = (
+				EB08867B3D5F41A5E8D7B441 /* Sources */,
+				1B01F18BC710A94398FD0ADB /* Frameworks */,
+				C69E3E400560429380DBC06E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FC0849E2FDF22B35A7DF9C25 /* ShieldAction */,
+			);
+			name = ShieldAction;
+			packageProductDependencies = (
+				C5100B70BC457238F4CA7021 /* HypemanKit */,
+			);
+			productName = ShieldAction;
+			productReference = 8FBAECD6E3E402A323248A70 /* ShieldAction.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		46F86FAA6BBF9AC94A7E4595 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					82C441DC124AD3642A1459C8 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					CF643A2902922A145FCE196F = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					66CEF77B215E055F422D79B9 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					BD7EB293AB9EAC6349A8554B = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					B65540555DDE4AA297D1EA61 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 4465C0EB90661DA0C0399108 /* Build configuration list for PBXProject "Hypeman" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 2B731CEFC6751AAE0EC69B98;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2D652B2C2BAD622A7EE18BF7 /* XCLocalSwiftPackageReference "HypemanKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0A2C978E52A76F0AA9F68BB5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				82C441DC124AD3642A1459C8 /* Hypeman */,
+				CF643A2902922A145FCE196F /* Widgets */,
+				66CEF77B215E055F422D79B9 /* ActivityMonitor */,
+				BD7EB293AB9EAC6349A8554B /* ShieldConfig */,
+				B65540555DDE4AA297D1EA61 /* ShieldAction */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A8CBA10E353456FA95A212EF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECF3936FEF6FE1162D2C4678 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00FF73611B09598D1F11076 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D2D438805371BEF69D715482 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C69E3E400560429380DBC06E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		98417A0744B09D67A6ACC0B7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F2C798B8193C89FDC8F5CB3A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		43F444EDC73BDDCF98E84143 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C4A75451896BFD3ABA5E2279 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB08867B3D5F41A5E8D7B441 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		277E0A4787741EBB0E223C11 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CF643A2902922A145FCE196F /* Widgets */;
+			targetProxy = 0FB6ACF068412D5D290491B7 /* PBXContainerItemProxy */;
+		};
+		3FFF67E324AC65D4C682B17D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 66CEF77B215E055F422D79B9 /* ActivityMonitor */;
+			targetProxy = FC93B03CB5DC75FFC6318167 /* PBXContainerItemProxy */;
+		};
+		638D3F3AC6EE70305B21FED0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BD7EB293AB9EAC6349A8554B /* ShieldConfig */;
+			targetProxy = E5A5B917EE51A95A335512B4 /* PBXContainerItemProxy */;
+		};
+		CAD09855F9D78556D5EC6CF5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B65540555DDE4AA297D1EA61 /* ShieldAction */;
+			targetProxy = FDB2FDD43255BFBEF9E1C2FE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		51EF39482A6FA950D2249F44 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 0.1.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		324BAF2B999929E396762DC5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 0.1.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		7F3C3F3BE640016D052E0A22 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Hypeman/Hypeman.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Hypeman;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B2494DE15F3D55107BE9EF38 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Hypeman/Hypeman.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Hypeman;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		C89E04EE03B3FD877C25567B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Widgets/Widgets.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Widgets;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		74C01060BE08BD9D836A6D85 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Widgets/Widgets.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Widgets;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		97747351A9985F44814A2986 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ActivityMonitor/ActivityMonitor.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ActivityMonitor/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = ActivityMonitor;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app.ActivityMonitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		F937EA8C47519BFAFE275CA3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ActivityMonitor/ActivityMonitor.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ActivityMonitor/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = ActivityMonitor;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app.ActivityMonitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		60CF100565418D32C7559A44 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ShieldConfig/ShieldConfig.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ShieldConfig/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = ShieldConfig;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app.ShieldConfig;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		78802BB090529336912A93F5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ShieldConfig/ShieldConfig.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ShieldConfig/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = ShieldConfig;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app.ShieldConfig;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		2B1A977F51FE1A1244B73B4E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ShieldAction/ShieldAction.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ShieldAction/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = ShieldAction;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app.ShieldAction;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		6ED9B56117FFBEE3F8089489 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ShieldAction/ShieldAction.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ShieldAction/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = ShieldAction;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hypeman.app.ShieldAction;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4465C0EB90661DA0C0399108 /* Build configuration list for PBXProject "Hypeman" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				51EF39482A6FA950D2249F44 /* Debug */,
+				324BAF2B999929E396762DC5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EA7B0CAF91C1DF59C8F569F1 /* Build configuration list for PBXNativeTarget "Hypeman" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7F3C3F3BE640016D052E0A22 /* Debug */,
+				B2494DE15F3D55107BE9EF38 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		06C086F5F4B74FCB6E1F72E4 /* Build configuration list for PBXNativeTarget "Widgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C89E04EE03B3FD877C25567B /* Debug */,
+				74C01060BE08BD9D836A6D85 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2071E0C2F268FA9BD9F2CE97 /* Build configuration list for PBXNativeTarget "ActivityMonitor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				97747351A9985F44814A2986 /* Debug */,
+				F937EA8C47519BFAFE275CA3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3AD5B59F7FA0A9B5C0E646F1 /* Build configuration list for PBXNativeTarget "ShieldConfig" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				60CF100565418D32C7559A44 /* Debug */,
+				78802BB090529336912A93F5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		872976001E41033509E2641C /* Build configuration list for PBXNativeTarget "ShieldAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2B1A977F51FE1A1244B73B4E /* Debug */,
+				6ED9B56117FFBEE3F8089489 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		2D652B2C2BAD622A7EE18BF7 /* XCLocalSwiftPackageReference "HypemanKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = HypemanKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6D7551D98269035F61F59EE0 /* HypemanKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HypemanKit;
+		};
+		042E01B63B12895FD2173058 /* HypemanKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HypemanKit;
+		};
+		8789756918E2B398111DE0EF /* HypemanKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HypemanKit;
+		};
+		F6FDA24FCA22A5F7ADFFF762 /* HypemanKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HypemanKit;
+		};
+		C5100B70BC457238F4CA7021 /* HypemanKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HypemanKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+}
