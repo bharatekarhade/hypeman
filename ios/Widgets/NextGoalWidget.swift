@@ -43,50 +43,138 @@ struct NextGoalView: View {
 
     var body: some View {
         if let goal = entry.goal {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(header(for: goal))
-                    .font(.caption2.bold())
-                    .foregroundStyle(.secondary)
-                Text(goal.title)
-                    .font(.headline)
-                    .lineLimit(2)
-                if let startedAt = goal.startedAt {
-                    Text(startedAt, style: .timer)
-                        .font(.title2.bold().monospacedDigit())
+            if family == .systemMedium {
+                medium(goal)
+            } else {
+                small(goal)
+            }
+        } else {
+            empty
+        }
+    }
+
+    private func small(_ goal: NextGoalEntry.NextGoal) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let startedAt = goal.startedAt {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Theme.accent)
+                        .frame(width: 10, height: 10)
+                    SectionLabel("STARTED", size: 11)
                 }
-                Spacer(minLength: 0)
-                HStack {
-                    Button(intent: StartGoalIntent(goalID: goal.id)) {
-                        Text("DO IT")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
+                Spacer(minLength: 4)
+                Text(goal.title)
+                    .font(Theme.text(14, weight: .bold))
+                    .lineLimit(1)
+                Text(startedAt, style: .timer)
+                    .font(Theme.display(38))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Spacer(minLength: 4)
+                doneButton(goal, label: "DONE")
+            } else {
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Theme.accent)
+                        .frame(width: 28, height: 28)
+                    SectionLabel("NEXT", size: 11)
+                }
+                Spacer(minLength: 4)
+                Text(goal.title)
+                    .font(Theme.text(17, weight: .bold))
+                    .lineLimit(3)
+                Spacer(minLength: 4)
+                doItButton(goal, height: 40)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private func medium(_ goal: NextGoalEntry.NextGoal) -> some View {
+        HStack(spacing: 14) {
+            HypeFigure(color: Theme.figure)
+                .frame(width: 84, height: 110)
+                .frame(width: 96, alignment: .bottom)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .background(Theme.thumb, in: RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            VStack(alignment: .leading, spacing: 4) {
+                SectionLabel(header(for: goal), size: 11)
+                Text(goal.title)
+                    .font(Theme.text(19, weight: .bold))
+                    .lineLimit(2)
+                Spacer(minLength: 4)
+                if let startedAt = goal.startedAt {
+                    HStack(spacing: 8) {
+                        Text(startedAt, style: .timer)
+                            .font(Theme.display(30))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                        doneButton(goal, label: "DONE")
                     }
-                    .tint(Theme.accent)
-                    .foregroundStyle(.black)
-                    if family != .systemSmall || goal.startedAt != nil {
+                } else {
+                    HStack(spacing: 8) {
+                        doItButton(goal, height: 44)
                         Button(intent: CompleteGoalIntent(goalID: goal.id)) {
                             Image(systemName: "checkmark")
-                                .font(.headline)
+                                .font(.system(size: 18, weight: .bold))
+                                .frame(width: 44, height: 44)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.ink, lineWidth: 1.5))
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Mark done")
                     }
                 }
             }
-        } else {
-            VStack(alignment: .leading) {
-                Text("Nothing to do? Suspicious.")
-                    .font(.headline)
-                Spacer(minLength: 0)
-                Text("+ Add a goal")
-                    .font(.caption.bold())
-            }
         }
+    }
+
+    private var empty: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HazardStripes(stripe: 10)
+                .frame(height: 10)
+                .clipShape(RoundedRectangle(cornerRadius: 2))
+            Spacer(minLength: 4)
+            Text("NOTHING TO DO? SUSPICIOUS.")
+                .font(Theme.display(family == .systemMedium ? 34 : 28))
+                .lineLimit(3)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: 4)
+            Text("+ Add a goal")
+                .font(Theme.text(13, weight: .bold))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private func doItButton(_ goal: NextGoalEntry.NextGoal, height: CGFloat) -> some View {
+        Button(intent: StartGoalIntent(goalID: goal.id)) {
+            Text("DO IT")
+                .font(Theme.display(20))
+                .kerning(0.8)
+                .frame(maxWidth: .infinity, minHeight: height)
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(Theme.onAccent)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func doneButton(_ goal: NextGoalEntry.NextGoal, label: String) -> some View {
+        Button(intent: CompleteGoalIntent(goalID: goal.id)) {
+            Text(label)
+                .font(Theme.display(20))
+                .kerning(0.8)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.ink, lineWidth: 1.5))
+        }
+        .buttonStyle(.plain)
     }
 
     private func header(for goal: NextGoalEntry.NextGoal) -> String {
         if goal.startedAt != nil { return "STARTED" }
         let more = entry.remaining - 1
-        return family == .systemMedium && more > 0 ? "NEXT UP · \(more) MORE" : "NEXT"
+        return more > 0 ? "NEXT UP · \(more) MORE TODAY" : "NEXT UP"
     }
 }
 
@@ -94,7 +182,8 @@ struct NextGoalWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NextGoal", provider: NextGoalProvider()) { entry in
             NextGoalView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .foregroundStyle(Theme.ink)
+                .containerBackground(Theme.widget, for: .widget)
         }
         .configurationDisplayName("Next goal")
         .description("Your next goal and a DO IT button.")
