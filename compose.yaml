@@ -1,0 +1,41 @@
+# Local development. `./mvnw spring-boot:run` starts the postgres service on its own through Spring Boot's
+# Docker Compose support; `docker compose --profile app up --build` runs the production image against it instead.
+name: hypeman
+
+services:
+  postgres:
+    # Same major version as Supabase and the Testcontainers tests.
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: hypeman
+      POSTGRES_USER: hypeman
+      POSTGRES_PASSWORD: hypeman
+    ports:
+      # 5433 on the host, so it doesn't collide with another project's Postgres on 5432.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hypeman -d hypeman"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    profiles: [app]
+    build: .
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hypeman
+      SPRING_DATASOURCE_USERNAME: hypeman
+      SPRING_DATASOURCE_PASSWORD: hypeman
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      # Spring Boot's Docker Compose support only manages the database.
+      org.springframework.boot.ignore: "true"
+
+volumes:
+  postgres-data:
