@@ -8,7 +8,7 @@ let package = Package(
         .library(name: "HypemanKit", targets: ["HypemanKit"]),
     ],
     targets: [
-        .target(name: "HypemanKit"),
+        .target(name: "HypemanKit", resources: [.process("Resources")]),
         .testTarget(name: "HypemanKitTests", dependencies: ["HypemanKit"]),
     ]
 )

@@ -1,10 +1,16 @@
+import HypemanKit
 import SwiftUI
 
 @main
 struct HypemanApp: App {
+    init() {
+        Theme.registerFonts()
+    }
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            GoalsView()
         }
+        .modelContainer(GoalStore.container)
     }
 }

@@ -79,6 +79,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Hypeman.entitlements,
+				Info.plist,
 			);
 			target = 82C441DC124AD3642A1459C8 /* Hypeman */;
 		};
@@ -157,6 +158,11 @@
 			path = ShieldAction;
 			sourceTree = "<group>";
 		};
+		AC6071E0DAE17C1C87A11709 /* Intents */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Intents;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -211,6 +217,7 @@
 				29F24D700BF099F29D0ACF79 /* ActivityMonitor */,
 				A87B6BEB48D7B12FC9D82456 /* ShieldConfig */,
 				FC0849E2FDF22B35A7DF9C25 /* ShieldAction */,
+				AC6071E0DAE17C1C87A11709 /* Intents */,
 				0A2C978E52A76F0AA9F68BB5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -249,6 +256,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				7676FB1AA2E62CE79FA309B9 /* Hypeman */,
+				AC6071E0DAE17C1C87A11709 /* Intents */,
 			);
 			name = Hypeman;
 			packageProductDependencies = (
@@ -272,6 +280,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CA8178CE1EBEA674C2B38EDA /* Widgets */,
+				AC6071E0DAE17C1C87A11709 /* Intents */,
 			);
 			name = Widgets;
 			packageProductDependencies = (
@@ -563,6 +572,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Hypeman/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Hypeman;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -589,6 +599,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Hypeman/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Hypeman;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
