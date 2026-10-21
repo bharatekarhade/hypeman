@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 public class TestHypemanApplication {
 
     public static void main(String[] args) {
-        SpringApplication.from(HypemanApplication::main).with(TestcontainersConfiguration.class).run(args);
+        SpringApplication.from(HypemanApplication::main).with(TestcontainersConfiguration.class).withAdditionalProfiles("local").run(args);
     }
 
 }

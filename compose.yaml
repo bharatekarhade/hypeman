@@ -28,6 +28,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hypeman
       SPRING_DATASOURCE_USERNAME: hypeman
       SPRING_DATASOURCE_PASSWORD: hypeman
+      # A throwaway access token key; production sets HYPEMAN_AUTH_SIGNING_KEY instead.
+      HYPEMAN_AUTH_ALLOWEPHEMERALSIGNINGKEY: "true"
+      HYPEMAN_AUTH_APPLE_CLIENT_IDS: com.bharatekarhade.hypeman
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

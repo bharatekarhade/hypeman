@@ -1,0 +1,19 @@
+package com.hypeman.auth;
+
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+
+interface DeviceRepository extends JpaRepository<Device, UUID> {
+
+    Optional<Device> findByApnsToken(String apnsToken);
+
+    Optional<Device> findByApnsTokenAndUserId(String apnsToken, UUID userId);
+
+    /** Their refresh tokens go with them through the foreign key's ON DELETE CASCADE. */
+    @Modifying
+    @Query("delete from Device d where d.userId = :userId")
+    void deleteByUserId(UUID userId);
+}

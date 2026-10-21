@@ -1,0 +1,41 @@
+package com.hypeman.common;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import org.slf4j.MDC;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+/**
+ * Gives every request an id, on every log line and in the X-Request-Id response header. Runs before Spring Security so
+ * its 401s carry the id too. A well-formed id sent by the caller is kept, so the app can quote it in bug reports.
+ */
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class RequestIdFilter extends OncePerRequestFilter {
+
+    public static final String HEADER = "X-Request-Id";
+    public static final String MDC_KEY = "requestId";
+    private static final Pattern WELL_FORMED = Pattern.compile("[A-Za-z0-9-]{8,64}");
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        String sent = request.getHeader(HEADER);
+        String requestId = sent != null && WELL_FORMED.matcher(sent).matches() ? sent : UUID.randomUUID().toString();
+        MDC.put(MDC_KEY, requestId);
+        response.setHeader(HEADER, requestId);
+        try {
+            chain.doFilter(request, response);
+        } finally {
+            MDC.remove(MDC_KEY);
+        }
+    }
+}

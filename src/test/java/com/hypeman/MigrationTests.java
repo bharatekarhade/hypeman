@@ -11,11 +11,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Checks the rules the schema enforces on its own, whatever code writes to it. */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
+@ActiveProfiles("local")
 @Transactional
 class MigrationTests {
 
