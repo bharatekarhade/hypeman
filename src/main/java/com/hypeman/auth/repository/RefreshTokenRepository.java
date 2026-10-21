@@ -1,5 +1,6 @@
-package com.hypeman.auth;
+package com.hypeman.auth.repository;
 
+import com.hypeman.auth.model.RefreshToken;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -7,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
-interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
+public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
 
     Optional<RefreshToken> findByTokenHash(byte[] tokenHash);
 

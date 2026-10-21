@@ -1,5 +1,10 @@
-package com.hypeman.auth;
+package com.hypeman.auth.service;
 
+import com.hypeman.auth.config.AuthProperties;
+import com.hypeman.auth.model.Device;
+import com.hypeman.auth.model.RefreshToken;
+import com.hypeman.auth.repository.DeviceRepository;
+import com.hypeman.auth.repository.RefreshTokenRepository;
 import com.hypeman.common.ApiException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

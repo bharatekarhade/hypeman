@@ -1,4 +1,4 @@
-package com.hypeman.user;
+package com.hypeman.user.model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,7 +47,7 @@ public class UserIdentity {
     }
 
     /** Apple sends the email only on the first sign-in, so a later sign-in without one keeps what we have. */
-    void updateEmail(String newEmail) {
+    public void updateEmail(String newEmail) {
         if (newEmail != null) {
             email = newEmail;
         }

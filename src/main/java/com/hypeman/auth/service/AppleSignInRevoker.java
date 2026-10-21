@@ -1,9 +1,10 @@
-package com.hypeman.auth;
+package com.hypeman.auth.service;
 
+import com.hypeman.auth.config.AuthProperties;
 import com.hypeman.common.ApiException;
-import com.hypeman.user.IdentityProvider;
-import com.hypeman.user.IdentityRevoker;
-import com.hypeman.user.UserIdentity;
+import com.hypeman.user.model.IdentityProvider;
+import com.hypeman.user.model.UserIdentity;
+import com.hypeman.user.service.IdentityRevoker;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;

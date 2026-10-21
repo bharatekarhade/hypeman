@@ -1,5 +1,8 @@
-package com.hypeman.auth;
+package com.hypeman.auth.controller;
 
+import com.hypeman.auth.model.Device;
+import com.hypeman.auth.service.DeviceService;
+import com.hypeman.auth.service.TokenService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

@@ -5,7 +5,9 @@ import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.hypeman.TestcontainersConfiguration;
-import com.hypeman.user.IdentityProvider;
+import com.hypeman.auth.config.AuthProperties;
+import com.hypeman.auth.service.IdentityTokenVerifier;
+import com.hypeman.user.model.IdentityProvider;
 import com.jayway.jsonpath.JsonPath;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;

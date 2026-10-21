@@ -1,4 +1,4 @@
-package com.hypeman.user;
+package com.hypeman.user.model;
 
 import java.util.UUID;
 

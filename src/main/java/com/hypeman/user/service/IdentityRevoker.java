@@ -1,5 +1,6 @@
-package com.hypeman.user;
+package com.hypeman.user.service;
 
+import com.hypeman.user.model.UserIdentity;
 import java.util.List;
 
 /**

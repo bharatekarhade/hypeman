@@ -1,5 +1,6 @@
-package com.hypeman.auth;
+package com.hypeman.auth.config;
 
+import com.hypeman.auth.service.IdentityTokenVerifier;
 import com.hypeman.common.ApiError;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;

@@ -1,4 +1,4 @@
-package com.hypeman.auth;
+package com.hypeman.auth.config;
 
 import java.time.Duration;
 import java.util.List;

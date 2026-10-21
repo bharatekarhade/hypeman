@@ -1,5 +1,7 @@
-package com.hypeman.user;
+package com.hypeman.user.repository;
 
+import com.hypeman.user.model.IdentityProvider;
+import com.hypeman.user.model.UserIdentity;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -7,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
-interface UserIdentityRepository extends JpaRepository<UserIdentity, UUID> {
+public interface UserIdentityRepository extends JpaRepository<UserIdentity, UUID> {
 
     Optional<UserIdentity> findByProviderAndSubject(IdentityProvider provider, String subject);
 

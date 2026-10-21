@@ -1,6 +1,7 @@
-package com.hypeman.auth;
+package com.hypeman.auth.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.hypeman.auth.config.AuthProperties;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;

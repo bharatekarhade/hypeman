@@ -1,7 +1,8 @@
-package com.hypeman.auth;
+package com.hypeman.auth.service;
 
+import com.hypeman.auth.config.AuthProperties;
 import com.hypeman.common.ApiException;
-import com.hypeman.user.IdentityProvider;
+import com.hypeman.user.model.IdentityProvider;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -25,19 +26,19 @@ public class IdentityTokenVerifier {
 
     private final Map<IdentityProvider, JwtDecoder> decoders;
 
-    IdentityTokenVerifier(Map<IdentityProvider, JwtDecoder> decoders) {
+    public IdentityTokenVerifier(Map<IdentityProvider, JwtDecoder> decoders) {
         this.decoders = decoders;
     }
 
     /** Fetches each provider's signing keys from its published key set, and caches them. */
-    static IdentityTokenVerifier forProviders(AuthProperties properties) {
+    public static IdentityTokenVerifier forProviders(AuthProperties properties) {
         return new IdentityTokenVerifier(Map.of(
                 IdentityProvider.APPLE, decoder(properties.apple(), NimbusJwtDecoder.withJwkSetUri(properties.apple().jwkSetUri()).build()),
                 IdentityProvider.GOOGLE, decoder(properties.google(), NimbusJwtDecoder.withJwkSetUri(properties.google().jwkSetUri()).build())));
     }
 
     /** Adds the provider's issuer and audience checks to a decoder that already checks signatures. */
-    static JwtDecoder decoder(AuthProperties.Provider provider, NimbusJwtDecoder signatureChecking) {
+    public static JwtDecoder decoder(AuthProperties.Provider provider, NimbusJwtDecoder signatureChecking) {
         signatureChecking.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 new JwtTimestampValidator(),
                 claim("iss", jwt -> provider.issuers().contains(jwt.getClaimAsString("iss"))),

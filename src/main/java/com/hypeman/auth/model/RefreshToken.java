@@ -1,4 +1,4 @@
-package com.hypeman.auth;
+package com.hypeman.auth.model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -10,7 +10,7 @@ import org.hibernate.annotations.UuidGenerator;
 /** A refresh token, stored only as the SHA-256 of what the app holds. */
 @Entity
 @Table(name = "refresh_tokens")
-class RefreshToken {
+public class RefreshToken {
 
     @Id
     @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
@@ -29,34 +29,34 @@ class RefreshToken {
     protected RefreshToken() {
     }
 
-    RefreshToken(UUID userId, UUID deviceId, byte[] tokenHash, Instant expiresAt) {
+    public RefreshToken(UUID userId, UUID deviceId, byte[] tokenHash, Instant expiresAt) {
         this.userId = userId;
         this.deviceId = deviceId;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
     }
 
-    UUID getId() {
+    public UUID getId() {
         return id;
     }
 
-    UUID getUserId() {
+    public UUID getUserId() {
         return userId;
     }
 
-    UUID getDeviceId() {
+    public UUID getDeviceId() {
         return deviceId;
     }
 
-    boolean isRevoked() {
+    public boolean isRevoked() {
         return revokedAt != null;
     }
 
-    boolean isExpired(Instant now) {
+    public boolean isExpired(Instant now) {
         return !now.isBefore(expiresAt);
     }
 
-    void revoke(Instant now) {
+    public void revoke(Instant now) {
         revokedAt = now;
     }
 }

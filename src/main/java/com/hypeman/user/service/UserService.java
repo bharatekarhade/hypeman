@@ -1,7 +1,13 @@
-package com.hypeman.user;
+package com.hypeman.user.service;
 
 import com.hypeman.common.ApiException;
 import com.hypeman.common.Ids;
+import com.hypeman.user.model.IdentityProvider;
+import com.hypeman.user.model.User;
+import com.hypeman.user.model.UserDeletedEvent;
+import com.hypeman.user.model.UserIdentity;
+import com.hypeman.user.repository.UserIdentityRepository;
+import com.hypeman.user.repository.UserRepository;
 import java.time.Clock;
 import java.util.List;
 import java.util.UUID;

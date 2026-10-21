@@ -1,7 +1,9 @@
-package com.hypeman.auth;
+package com.hypeman.auth.service;
 
+import com.hypeman.auth.model.Device;
+import com.hypeman.auth.repository.DeviceRepository;
 import com.hypeman.common.ApiException;
-import com.hypeman.user.UserDeletedEvent;
+import com.hypeman.user.model.UserDeletedEvent;
 import java.util.UUID;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;

@@ -1,5 +1,9 @@
-package com.hypeman.user;
+package com.hypeman.user.controller;
 
+import com.hypeman.user.model.IdentityProvider;
+import com.hypeman.user.model.User;
+import com.hypeman.user.model.UserView;
+import com.hypeman.user.service.UserService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

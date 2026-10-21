@@ -1,4 +1,4 @@
-package com.hypeman.auth;
+package com.hypeman.auth.model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -28,7 +28,7 @@ public class Device {
     protected Device() {
     }
 
-    Device(UUID id, UUID userId, Instant now) {
+    public Device(UUID id, UUID userId, Instant now) {
         this.id = id;
         this.userId = userId;
         this.lastSeenAt = now;
@@ -51,21 +51,21 @@ public class Device {
     }
 
     /** Someone else signed in on this phone: their pushes go here from now on, the previous user's don't. */
-    void moveTo(UUID newUserId) {
+    public void moveTo(UUID newUserId) {
         userId = newUserId;
         clearPushToken();
     }
 
-    void seen(Instant now) {
+    public void seen(Instant now) {
         lastSeenAt = now;
     }
 
-    void setPushToken(String token, ApnsEnvironment env) {
+    public void setPushToken(String token, ApnsEnvironment env) {
         apnsToken = token;
         environment = env;
     }
 
-    void clearPushToken() {
+    public void clearPushToken() {
         apnsToken = null;
         environment = null;
     }

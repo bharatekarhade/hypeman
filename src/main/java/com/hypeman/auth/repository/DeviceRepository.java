@@ -1,12 +1,13 @@
-package com.hypeman.auth;
+package com.hypeman.auth.repository;
 
+import com.hypeman.auth.model.Device;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
-interface DeviceRepository extends JpaRepository<Device, UUID> {
+public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
     Optional<Device> findByApnsToken(String apnsToken);
 

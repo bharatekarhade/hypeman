@@ -1,11 +1,13 @@
-package com.hypeman.auth;
+package com.hypeman.auth.controller;
 
-import com.hypeman.auth.IdentityTokenVerifier.VerifiedIdentity;
-import com.hypeman.auth.TokenService.TokenPair;
-import com.hypeman.user.IdentityProvider;
-import com.hypeman.user.User;
-import com.hypeman.user.UserService;
-import com.hypeman.user.UserView;
+import com.hypeman.auth.service.IdentityTokenVerifier;
+import com.hypeman.auth.service.IdentityTokenVerifier.VerifiedIdentity;
+import com.hypeman.auth.service.TokenService;
+import com.hypeman.auth.service.TokenService.TokenPair;
+import com.hypeman.user.model.IdentityProvider;
+import com.hypeman.user.model.User;
+import com.hypeman.user.model.UserView;
+import com.hypeman.user.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
