@@ -1,7 +1,7 @@
 package com.hypeman.auth.service;
 
 import com.hypeman.auth.config.AuthProperties;
-import com.hypeman.common.ApiException;
+import com.hypeman.common.ApplicationException;
 import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.model.UserIdentity;
 import com.hypeman.user.service.IdentityRevoker;
@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
@@ -48,22 +47,22 @@ class AppleSignInRevoker implements IdentityRevoker {
                 log.warn("No Sign in with Apple key set; deleting the account without revoking its Apple sign-in.");
                 return;
             }
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "APPLE_REVOKE_UNAVAILABLE", "Account deletion is unavailable right now. Please try again later.");
+            throw new ApplicationException("APPLE_REVOKE_UNAVAILABLE", "Account deletion is unavailable right now. Please try again later.");
         }
         if (!StringUtils.hasText(appleAuthorizationCode)) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "APPLE_REAUTH_REQUIRED", "Confirm with Apple to delete your account.");
+            throw new ApplicationException("APPLE_REAUTH_REQUIRED", "Confirm with Apple to delete your account.");
         }
 
         AppleClient.TokenResponse tokens;
         try {
             tokens = apple.exchange(appleAuthorizationCode);
         } catch (HttpClientErrorException e) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_APPLE_AUTHORIZATION_CODE", "Apple didn't accept the confirmation. Please try again.");
+            throw new ApplicationException("INVALID_APPLE_AUTHORIZATION_CODE", "Apple didn't accept the confirmation. Please try again.");
         } catch (RestClientException e) {
             throw appleUnreachable(e);
         }
         if (!verifier.verifyFromApple(tokens.idToken()).subject().equals(appleIdentity.get().getSubject())) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "APPLE_ACCOUNT_MISMATCH", "Confirm with the Apple account you signed in with.");
+            throw new ApplicationException("APPLE_ACCOUNT_MISMATCH", "Confirm with the Apple account you signed in with.");
         }
         try {
             apple.revoke(tokens.refreshToken());
@@ -72,8 +71,8 @@ class AppleSignInRevoker implements IdentityRevoker {
         }
     }
 
-    private static ApiException appleUnreachable(RestClientException e) {
+    private static ApplicationException appleUnreachable(RestClientException e) {
         log.error("Sign in with Apple revocation failed", e);
-        return new ApiException(HttpStatus.BAD_GATEWAY, "APPLE_REVOKE_FAILED", "Couldn't reach Apple to finish deleting your account. Please try again.");
+        return new ApplicationException("APPLE_REVOKE_FAILED", "Couldn't reach Apple to finish deleting your account. Please try again.");
     }
 }

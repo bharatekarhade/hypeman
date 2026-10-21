@@ -3,7 +3,7 @@ package com.hypeman.media.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hypeman.common.ApiException;
+import com.hypeman.common.ApplicationException;
 import com.hypeman.media.config.MediaProperties;
 import java.net.URI;
 import java.time.Clock;
@@ -60,16 +60,16 @@ class MediaStorageTests {
     @Test
     void anUploadOverTheLimitIsRefused() {
         assertThatThrownBy(() -> storage("hypeman-media-test").presignUpload("packs/a/start/source.mp4", "video/mp4", DataSize.ofMegabytes(101).toBytes()))
-                .isInstanceOf(ApiException.class)
-                .extracting(e -> ((ApiException) e).code())
+                .isInstanceOf(ApplicationException.class)
+                .extracting(e -> ((ApplicationException) e).code())
                 .isEqualTo("UPLOAD_TOO_LARGE");
     }
 
     @Test
     void withoutABucketMediaIsUnavailableRatherThanBroken() {
         assertThatThrownBy(() -> storage("").presignDownload("packs/a/start/clip.mp4"))
-                .isInstanceOf(ApiException.class)
-                .extracting(e -> ((ApiException) e).code())
+                .isInstanceOf(ApplicationException.class)
+                .extracting(e -> ((ApplicationException) e).code())
                 .isEqualTo("MEDIA_UNAVAILABLE");
     }
 

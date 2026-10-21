@@ -5,7 +5,7 @@ import com.hypeman.auth.model.Device;
 import com.hypeman.auth.model.RefreshToken;
 import com.hypeman.auth.repository.DeviceRepository;
 import com.hypeman.auth.repository.RefreshTokenRepository;
-import com.hypeman.common.ApiException;
+import com.hypeman.common.ApplicationException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -14,7 +14,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -78,7 +77,7 @@ public class TokenService {
      * requests racing with the same token too: the revoke is atomic, one wins and the other counts as a replay. The
      * device-wide revocation commits even though the request fails.
      */
-    @Transactional(noRollbackFor = ApiException.class)
+    @Transactional(noRollbackFor = RefreshTokenReuseException.class)
     public TokenPair refresh(String refreshToken) {
         Instant now = clock.instant();
         RefreshToken token = tokens.findByTokenHash(hash(refreshToken)).orElseThrow(TokenService::invalidRefreshToken);
@@ -87,7 +86,7 @@ public class TokenService {
         }
         if (token.isRevoked() || tokens.revokeIfActive(token.getId(), now) == 0) {
             tokens.revokeAllForDevice(token.getDeviceId(), now);
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "REFRESH_TOKEN_REUSED", "This sign-in was used somewhere else. Please sign in again.");
+            throw new RefreshTokenReuseException();
         }
         devices.findById(token.getDeviceId()).ifPresent(device -> device.seen(now));
         return issue(token.getUserId(), token.getDeviceId(), now);
@@ -127,8 +126,8 @@ public class TokenService {
         }
     }
 
-    private static ApiException invalidRefreshToken() {
-        return new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "Your sign-in expired. Please sign in again.");
+    private static ApplicationException invalidRefreshToken() {
+        return new ApplicationException("INVALID_REFRESH_TOKEN", "Your sign-in expired. Please sign in again.");
     }
 
     public record TokenPair(String accessToken, Instant accessTokenExpiresAt, String refreshToken) {

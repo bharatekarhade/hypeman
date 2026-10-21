@@ -18,9 +18,9 @@ class ApiExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    @ExceptionHandler(ApiException.class)
-    ResponseEntity<ApiError> handle(ApiException e) {
-        return ResponseEntity.status(e.status()).body(ApiError.of(e.code(), e.getMessage()));
+    @ExceptionHandler(ApplicationException.class)
+    ResponseEntity<ApiError> handle(ApplicationException e) {
+        return ResponseEntity.status(statusFor(e.code())).body(ApiError.of(e.code(), e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -54,5 +54,20 @@ class ApiExceptionHandler {
 
     private static ResponseEntity<ApiError> validationFailed(String message) {
         return ResponseEntity.unprocessableContent().body(ApiError.of("VALIDATION_FAILED", message));
+    }
+
+    /** Maps application error codes to HTTP only at the web boundary. */
+    private static HttpStatus statusFor(String code) {
+        return switch (code) {
+            case "INVALID_IDENTITY_TOKEN", "INVALID_REFRESH_TOKEN", "REFRESH_TOKEN_REUSED", "ACCOUNT_DELETED", "DEVICE_SIGNED_OUT" -> HttpStatus.UNAUTHORIZED;
+            case "PACK_NOT_OWNED" -> HttpStatus.FORBIDDEN;
+            case "PACK_NOT_FOUND", "CLIP_NOT_FOUND" -> HttpStatus.NOT_FOUND;
+            case "PACK_NOT_EDITABLE", "PACK_CLIPS_NOT_READY", "UPLOAD_NOT_FOUND" -> HttpStatus.CONFLICT;
+            case "VALIDATION_FAILED", "UPLOAD_TOO_LARGE", "UNSUPPORTED_FILE_TYPE", "APPLE_REAUTH_REQUIRED",
+                    "INVALID_APPLE_AUTHORIZATION_CODE", "APPLE_ACCOUNT_MISMATCH" -> HttpStatus.UNPROCESSABLE_CONTENT;
+            case "APPLE_REVOKE_FAILED" -> HttpStatus.BAD_GATEWAY;
+            case "MEDIA_UNAVAILABLE", "APPLE_REVOKE_UNAVAILABLE" -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.INTERNAL_SERVER_ERROR;
+        };
     }
 }

@@ -1,6 +1,6 @@
 package com.hypeman.user.service;
 
-import com.hypeman.common.ApiException;
+import com.hypeman.common.ApplicationException;
 import com.hypeman.common.Ids;
 import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.model.User;
@@ -12,7 +12,6 @@ import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,7 +59,7 @@ public class UserService {
     public User get(UUID userId) {
         return users.findById(userId)
                 .filter(user -> !user.isDeleted())
-                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "ACCOUNT_DELETED", "This account was deleted."));
+                .orElseThrow(() -> new ApplicationException("ACCOUNT_DELETED", "This account was deleted."));
     }
 
     @Transactional(readOnly = true)

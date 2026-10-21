@@ -2,11 +2,10 @@ package com.hypeman.auth.service;
 
 import com.hypeman.auth.model.Device;
 import com.hypeman.auth.repository.DeviceRepository;
-import com.hypeman.common.ApiException;
+import com.hypeman.common.ApplicationException;
 import com.hypeman.user.model.UserDeletedEvent;
 import java.util.UUID;
 import org.springframework.context.event.EventListener;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +24,7 @@ public class DeviceService {
     public void registerPushToken(UUID userId, UUID deviceId, String apnsToken, Device.ApnsEnvironment environment) {
         Device device = devices.findById(deviceId)
                 .filter(d -> d.getUserId().equals(userId))
-                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "DEVICE_SIGNED_OUT", "This device was signed out. Please sign in again."));
+                .orElseThrow(() -> new ApplicationException("DEVICE_SIGNED_OUT", "This device was signed out. Please sign in again."));
         devices.findByApnsToken(apnsToken)
                 .filter(other -> !other.getId().equals(deviceId))
                 .ifPresent(other -> {

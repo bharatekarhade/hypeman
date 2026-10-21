@@ -118,7 +118,7 @@ class MigrationTests {
         UUID clip = clips.save(new Clip(savePack(), ClipRole.NAG, "You snoozed again? Really?")).getId();
         Instant before = clips.findById(clip).orElseThrow().getUpdatedAt();
 
-        transaction.executeWithoutResult(status -> clips.findById(clip).orElseThrow().markProcessing("packs/a/nag/source.mp4"));
+        transaction.executeWithoutResult(status -> clips.findById(clip).orElseThrow().uploadStarted("packs/a/nag/source.mp4"));
 
         assertThat(clips.findById(clip).orElseThrow().getUpdatedAt()).isAfter(before);
     }

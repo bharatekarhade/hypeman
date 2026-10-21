@@ -1,6 +1,6 @@
 package com.hypeman.media.service;
 
-import com.hypeman.common.ApiException;
+import com.hypeman.common.ApplicationException;
 import com.hypeman.media.config.MediaProperties;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -48,7 +47,7 @@ public class MediaStorage {
     public PresignedUpload presignUpload(String key, String contentType, long sizeBytes) {
         checkKey(key);
         if (sizeBytes <= 0 || sizeBytes > properties.maxUploadSize().toBytes()) {
-            throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "UPLOAD_TOO_LARGE",
+            throw new ApplicationException("UPLOAD_TOO_LARGE",
                     "Files can be up to " + properties.maxUploadSize().toMegabytes() + " MB.");
         }
         Instant expiresAt = clock.instant().plus(properties.uploadUrlTtl());
@@ -100,7 +99,7 @@ public class MediaStorage {
 
     private String bucket() {
         if (!StringUtils.hasText(properties.bucket())) {
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_UNAVAILABLE", "Uploads aren't set up yet. Set HYPEMAN_MEDIA_BUCKET.");
+            throw new ApplicationException("MEDIA_UNAVAILABLE", "Uploads aren't set up yet. Set HYPEMAN_MEDIA_BUCKET.");
         }
         return properties.bucket();
     }
@@ -111,9 +110,9 @@ public class MediaStorage {
         }
     }
 
-    private static ApiException unavailable(Exception e) {
+    private static ApplicationException unavailable(Exception e) {
         log.error("S3 request failed", e);
-        return new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "MEDIA_UNAVAILABLE", "Media storage isn't reachable right now. Please try again.");
+        return new ApplicationException("MEDIA_UNAVAILABLE", "Media storage isn't reachable right now. Please try again.");
     }
 
     /** @param headers headers the uploader must send with the PUT, exactly as given */

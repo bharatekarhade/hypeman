@@ -78,6 +78,10 @@ public class Clip {
         return caption;
     }
 
+    public void updateCaption(String caption) {
+        this.caption = caption;
+    }
+
     public String getSourceKey() {
         return sourceKey;
     }
@@ -114,10 +118,28 @@ public class Clip {
         return updatedAt;
     }
 
-    /** The original is in S3; hand it to processing. */
-    public void markProcessing(String uploadedSourceKey) {
-        sourceKey = uploadedSourceKey;
-        status = ClipStatus.PROCESSING;
-        failureReason = null;
+    /** A new original is on its way to sourceKey; anything processed from the previous one no longer applies. */
+    public void uploadStarted(String sourceKey) {
+        this.sourceKey = sourceKey;
+        this.videoKey = null;
+        this.audioKey = null;
+        this.alarmKey = null;
+        this.thumbKey = null;
+        this.durationMs = null;
+        this.status = ClipStatus.UPLOADING;
+        this.failureReason = null;
+    }
+
+    public void markProcessing() {
+        this.status = ClipStatus.PROCESSING;
+    }
+
+    public void markReady(String videoKey, String audioKey, String alarmKey, String thumbKey, Integer durationMs) {
+        this.videoKey = videoKey;
+        this.audioKey = audioKey;
+        this.alarmKey = alarmKey;
+        this.thumbKey = thumbKey;
+        this.durationMs = durationMs;
+        this.status = ClipStatus.READY;
     }
 }

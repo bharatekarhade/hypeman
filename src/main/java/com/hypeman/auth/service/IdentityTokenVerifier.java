@@ -1,7 +1,7 @@
 package com.hypeman.auth.service;
 
 import com.hypeman.auth.config.AuthProperties;
-import com.hypeman.common.ApiException;
+import com.hypeman.common.ApplicationException;
 import com.hypeman.user.model.IdentityProvider;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -10,7 +10,6 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -90,8 +89,8 @@ public class IdentityTokenVerifier {
         }
     }
 
-    private static ApiException invalid() {
-        return new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_IDENTITY_TOKEN", "The sign-in token isn't valid. Please sign in again.");
+    private static ApplicationException invalid() {
+        return new ApplicationException("INVALID_IDENTITY_TOKEN", "The sign-in token isn't valid. Please sign in again.");
     }
 
     public record VerifiedIdentity(IdentityProvider provider, String subject, String email) {

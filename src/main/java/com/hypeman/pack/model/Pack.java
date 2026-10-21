@@ -62,6 +62,11 @@ public class Pack {
         return pack;
     }
 
+    public Pack publish(){
+        this.status = PackStatus.PUBLISHED;
+        return this;
+    }
+
     public UUID getId() {
         return id;
     }
