@@ -6,3 +6,4 @@ target
 HELP.md
 compose.yaml
 Dockerfile
+.env
