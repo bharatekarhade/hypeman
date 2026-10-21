@@ -3,7 +3,9 @@ package com.hypeman.pack.service;
 import com.hypeman.common.ApplicationException;
 import com.hypeman.media.service.MediaStorage;
 import com.hypeman.media.service.MediaStorage.PresignedUpload;
+import com.hypeman.pack.model.CatalogPack;
 import com.hypeman.pack.model.Clip;
+import com.hypeman.pack.model.ClipMedia;
 import com.hypeman.pack.model.ClipRole;
 import com.hypeman.pack.model.ClipStatus;
 import com.hypeman.pack.model.ClipUpload;
@@ -12,11 +14,14 @@ import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.repository.PackRepository;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,6 +103,36 @@ public class PackService {
     @Transactional(readOnly = true)
     public List<Pack> published() {
         return packRepository.findByStatusOrderByFeaturedRankAsc(PackStatus.PUBLISHED);
+    }
+
+    /** Every published pack with its clips, fetched in two queries however many packs there are. */
+    @Transactional(readOnly = true)
+    public List<CatalogPack> catalog() {
+        List<Pack> packs = published();
+        Map<UUID, List<Clip>> clipsByPack = clipRepository.findByPackIdIn(packs.stream().map(Pack::getId).toList()).stream()
+                .sorted(Comparator.comparing(Clip::getRole))
+                .collect(Collectors.groupingBy(Clip::getPackId));
+        return packs.stream()
+                .map(pack -> new CatalogPack(pack, clipsByPack.getOrDefault(pack.getId(), List.of())))
+                .toList();
+    }
+
+    /**
+     * Signed links to a published pack's videos. Only free packs for now; paid ones need purchases first. A pack that
+     * isn't published looks like one that doesn't exist.
+     */
+    @Transactional(readOnly = true)
+    public List<ClipMedia> media(UUID packId) {
+        Pack pack = packRepository.findById(packId)
+                .filter(found -> found.getStatus() == PackStatus.PUBLISHED)
+                .orElseThrow(() -> new ApplicationException("PACK_NOT_FOUND", "That pack doesn't exist."));
+        if (!pack.isFree()) {
+            throw new ApplicationException("PACK_NOT_PURCHASED", "Buy this pack to download it.");
+        }
+        return clipRepository.findByPackIdOrderByRole(packId).stream()
+                .sorted(Comparator.comparing(Clip::getRole))
+                .map(clip -> new ClipMedia(clip.getRole(), clip.getCaption(), mediaStorage.presignDownload(clip.getVideoKey())))
+                .toList();
     }
 
     private Pack findPack(UUID packId) {
