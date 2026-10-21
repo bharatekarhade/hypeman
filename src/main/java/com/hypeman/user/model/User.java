@@ -25,6 +25,10 @@ public class User {
     @Column(insertable = false, updatable = false)
     private Instant createdAt;
 
+    /** Kept current by the database's set_updated_at trigger. */
+    @Column(insertable = false, updatable = false)
+    private Instant updatedAt;
+
     public UUID getId() {
         return id;
     }
@@ -43,6 +47,10 @@ public class User {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 
     public void markDeleted(Instant at) {

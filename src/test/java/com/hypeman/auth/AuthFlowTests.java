@@ -6,8 +6,10 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.hypeman.TestcontainersConfiguration;
 import com.hypeman.auth.config.AuthProperties;
+import com.hypeman.auth.repository.DeviceRepository;
 import com.hypeman.auth.service.IdentityTokenVerifier;
 import com.hypeman.user.model.IdentityProvider;
+import com.hypeman.user.repository.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -39,7 +41,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -72,7 +73,10 @@ class AuthFlowTests {
     MockMvcTester mvc;
 
     @Autowired
-    JdbcTemplate jdbc;
+    UserRepository users;
+
+    @Autowired
+    DeviceRepository devices;
 
     @DynamicPropertySource
     static void appleApi(DynamicPropertyRegistry registry) {
@@ -167,15 +171,12 @@ class AuthFlowTests {
     @Test
     void simultaneousFirstSignInsWithOneAccountGetOneUser() throws Exception {
         String subject = newSubject();
+        long usersBefore = users.count();
 
         List<String> userIds = concurrently(8, () -> read(signInWithApple(subject, UUID.randomUUID()), "$.user.id"));
 
         assertThat(Set.copyOf(userIds)).hasSize(1);
-        // The losers removed the users they made. Deleted accounts keep their row but have deleted_at set.
-        assertThat(jdbc.queryForObject("""
-                SELECT count(*) FROM users u
-                WHERE u.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM user_identities i WHERE i.user_id = u.id)""",
-                Integer.class)).isZero();
+        assertThat(users.count()).as("the losers removed the users they made").isEqualTo(usersBefore + 1);
     }
 
     @Test
@@ -279,8 +280,8 @@ class AuthFlowTests {
         assertThat(registerPushToken(signInWithApple(newSubject(), firstPhone), apnsToken)).hasStatus(HttpStatus.NO_CONTENT);
         assertThat(registerPushToken(signInWithApple(newSubject(), secondPhone), apnsToken)).hasStatus(HttpStatus.NO_CONTENT);
 
-        assertThat(jdbc.queryForObject("SELECT apns_token FROM devices WHERE id = ?", String.class, firstPhone)).isNull();
-        assertThat(jdbc.queryForObject("SELECT apns_token FROM devices WHERE id = ?", String.class, secondPhone)).isEqualTo(apnsToken);
+        assertThat(devices.findById(firstPhone).orElseThrow().getApnsToken()).isNull();
+        assertThat(devices.findById(secondPhone).orElseThrow().getApnsToken()).isEqualTo(apnsToken);
     }
 
     private MvcTestResult signInWithApple(String subject, UUID deviceId) {
