@@ -1,17 +1,24 @@
 package com.hypeman.pack.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.hypeman.TestcontainersConfiguration;
 import com.hypeman.auth.config.AdminProperties;
+import com.hypeman.media.service.ClipTranscoder;
+import com.hypeman.media.service.ClipTranscoder.Outputs;
+import com.hypeman.media.service.ClipTranscoder.Probe;
 import com.hypeman.media.service.MediaStorage;
 import com.hypeman.media.service.MediaStorage.PresignedUpload;
 import com.hypeman.pack.model.ClipRole;
 import com.jayway.jsonpath.JsonPath;
 import java.net.URI;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +39,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * Making a default pack over HTTP with the admin token, from draft to the public catalog. The token is whatever the local
- * profile resolves to, so a developer's own .env doesn't break the tests. S3 is mocked as in PackControllerTests.
+ * profile resolves to, so a developer's own .env doesn't break the tests. S3 and ffmpeg are mocked as in PackControllerTests.
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -49,8 +56,14 @@ class AdminPackControllerTests {
     @MockitoBean
     MediaStorage media;
 
+    @MockitoBean
+    ClipTranscoder transcoder;
+
     @BeforeEach
-    void fakeS3() {
+    void fakeS3AndFfmpeg() {
+        when(transcoder.probe(any())).thenReturn(new Probe(4_200, true, true));
+        when(transcoder.transcode(any(), any(), anyLong()))
+                .thenReturn(new Outputs(Path.of("video.mp4"), Path.of("audio.m4a"), Path.of("alarm.caf"), Path.of("thumb.jpg")));
         when(media.presignUpload(anyString(), anyString(), anyLong())).thenAnswer(call -> new PresignedUpload(
                 URI.create("https://s3.test/" + call.getArgument(0)), Map.of("Content-Type", call.getArgument(1)), Instant.now()));
         when(media.presignDownload(anyString())).thenAnswer(call -> URI.create("https://s3.test/" + call.getArgument(0) + "?signed"));
@@ -79,8 +92,11 @@ class AdminPackControllerTests {
 
             MvcTestResult completed = post("/v1/admin/clips/" + read(upload, "$.clipId") + "/complete", null);
             assertThat(completed).hasStatusOk();
-            assertThat(this.<String>read(completed, "$.status")).isEqualTo("READY");
+            assertThat(this.<String>read(completed, "$.status")).isEqualTo("PROCESSING");
         }
+        await().atMost(Duration.ofSeconds(10)).until(() -> this.<List<String>>read(
+                mvc.get().uri("/v1/admin/packs/{id}", packId).header(HttpHeaders.AUTHORIZATION, bearer()).exchange(), "$.clips[*].status"),
+                statuses -> statuses.equals(List.of("READY", "READY", "READY", "READY")));
 
         MvcTestResult published = post("/v1/admin/packs/" + packId + "/publish", null);
 

@@ -1,18 +1,27 @@
 package com.hypeman.pack.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.hypeman.TestcontainersConfiguration;
+import com.hypeman.media.service.ClipTranscoder;
+import com.hypeman.media.service.ClipTranscoder.Outputs;
+import com.hypeman.media.service.ClipTranscoder.Probe;
 import com.hypeman.media.service.MediaStorage;
 import com.hypeman.media.service.MediaStorage.PresignedUpload;
 import com.hypeman.pack.model.ClipRole;
+import com.hypeman.pack.model.ClipStatus;
 import com.hypeman.pack.model.Pack;
+import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.service.PackService;
 import com.jayway.jsonpath.JsonPath;
 import java.net.URI;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +38,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
-/** The public catalog, with no sign-in. S3 is mocked: a download link is the key on a fake host. */
+/** The public catalog, with no sign-in. S3 and ffmpeg are mocked: a download link is the key on a fake host. */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,11 +51,20 @@ class PackControllerTests {
     @Autowired
     PackService service;
 
+    @Autowired
+    ClipRepository clips;
+
     @MockitoBean
     MediaStorage media;
 
+    @MockitoBean
+    ClipTranscoder transcoder;
+
     @BeforeEach
-    void fakeS3() {
+    void fakeS3AndFfmpeg() {
+        when(transcoder.probe(any())).thenReturn(new Probe(4_200, true, true));
+        when(transcoder.transcode(any(), any(), anyLong()))
+                .thenReturn(new Outputs(Path.of("video.mp4"), Path.of("audio.m4a"), Path.of("alarm.caf"), Path.of("thumb.jpg")));
         when(media.presignUpload(anyString(), anyString(), anyLong())).thenAnswer(call ->
                 new PresignedUpload(URI.create("https://s3.test/" + call.getArgument(0)), Map.of(), Instant.now()));
         when(media.presignDownload(anyString())).thenAnswer(call -> URI.create("https://s3.test/" + call.getArgument(0) + "?signed"));
@@ -115,6 +133,7 @@ class PackControllerTests {
         for (ClipRole role : ClipRole.values()) {
             UUID clipId = service.requestClipUpload(pack.getId(), null, role, "Line for " + role, "video/mp4", 4_200_000).clipId();
             service.completeClipUpload(clipId);
+            await().atMost(Duration.ofSeconds(10)).until(() -> clips.findById(clipId).orElseThrow().getStatus() == ClipStatus.READY);
         }
         return service.publish(pack.getId());
     }

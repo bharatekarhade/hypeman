@@ -10,11 +10,13 @@ import com.hypeman.pack.model.ClipMedia;
 import com.hypeman.pack.model.ClipRole;
 import com.hypeman.pack.model.ClipStatus;
 import com.hypeman.pack.model.ClipUpload;
+import com.hypeman.pack.model.ClipUploadedEvent;
 import com.hypeman.pack.model.Pack;
 import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.repository.PackRepository;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,17 +37,22 @@ public class PackService {
     private static final String QUICKTIME_CONTENT_TYPE = "video/quicktime";
     private static final int MAX_TITLE_LENGTH = 60;
     private static final int MAX_CAPTION_LENGTH = 120;
+    /** Processing a 10-second clip takes seconds; one PROCESSING this long was lost, e.g. to a restart. */
+    private static final Duration STUCK_PROCESSING = Duration.ofMinutes(10);
 
     private final PackRepository packRepository;
     private final ClipRepository clipRepository;
     private final MediaStorage mediaStorage;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
-    public PackService(PackRepository packRepository, ClipRepository clipRepository, MediaStorage mediaStorage, Clock clock) {
+    public PackService(PackRepository packRepository, ClipRepository clipRepository, MediaStorage mediaStorage, Clock clock,
+                       ApplicationEventPublisher events) {
         this.packRepository = packRepository;
         this.clipRepository = clipRepository;
         this.mediaStorage = mediaStorage;
         this.clock = clock;
+        this.events = events;
     }
 
     @Transactional
@@ -86,17 +94,24 @@ public class PackService {
     }
 
     /**
-     * Until processing exists, the original upload is played as is. Each attempt has its own key, so a file at it can only
-     * be this attempt's upload, never an earlier one's.
+     * Confirms the upload reached S3 and queues it for ClipProcessor; the clip turns READY or FAILED when that's done.
+     * Each attempt has its own key, so a file at it can only be this attempt's upload, never an earlier one's. Calling
+     * again changes nothing while processing runs or once it's READY, and retries a FAILED clip or a stuck one.
      */
     @Transactional
     public Clip completeClipUpload(UUID clipId) {
         Clip clip = clipRepository.findById(clipId)
                 .orElseThrow(() -> new ApplicationException("CLIP_NOT_FOUND", "That clip doesn't exist."));
+        boolean processing = clip.getStatus() == ClipStatus.PROCESSING
+                && (clip.getUpdatedAt() == null || clip.getUpdatedAt().isAfter(clock.instant().minus(STUCK_PROCESSING)));
+        if (processing || clip.getStatus() == ClipStatus.READY) {
+            return clip;
+        }
         if (clip.getSourceKey() == null || mediaStorage.sizeOf(clip.getSourceKey()) < 0) {
             throw new ApplicationException("UPLOAD_NOT_FOUND", "The clip's video hasn't been uploaded yet.");
         }
-        clip.markReady(clip.getSourceKey(), null, null, null, null);
+        clip.markProcessing();
+        events.publishEvent(new ClipUploadedEvent(clip.getId(), clip.getSourceKey()));
         return clip;
     }
 

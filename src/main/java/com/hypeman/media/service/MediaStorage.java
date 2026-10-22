@@ -4,6 +4,7 @@ import com.hypeman.common.ApplicationException;
 import com.hypeman.media.config.MediaProperties;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
@@ -13,13 +14,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 /**
- * Media files in S3. Uploads and downloads never pass through the backend: callers get a short-lived presigned link and
- * talk to S3 directly. The bucket is private; a link is the only way in.
+ * Media files in S3. The app's uploads and downloads never pass through the backend: callers get a short-lived presigned
+ * link and talk to S3 directly. The bucket is private; a link is the only way in. Only clip processing moves files
+ * through the server itself.
  */
 @Service
 public class MediaStorage {
@@ -83,6 +86,25 @@ public class MediaStorage {
                 return -1;
             }
             throw unavailable(e);
+        } catch (SdkException e) {
+            throw unavailable(e);
+        }
+    }
+
+    /** Saves the file at {@code key} to {@code target}, which must not exist yet. */
+    public void download(String key, Path target) {
+        checkKey(key);
+        try {
+            s3.getObject(get -> get.bucket(bucket()).key(key), target);
+        } catch (SdkException e) {
+            throw unavailable(e);
+        }
+    }
+
+    public void upload(String key, Path source, String contentType) {
+        checkKey(key);
+        try {
+            s3.putObject(put -> put.bucket(bucket()).key(key).contentType(contentType), RequestBody.fromFile(source));
         } catch (SdkException e) {
             throw unavailable(e);
         }

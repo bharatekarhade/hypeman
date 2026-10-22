@@ -132,6 +132,7 @@ public class Clip {
 
     public void markProcessing() {
         this.status = ClipStatus.PROCESSING;
+        this.failureReason = null;
     }
 
     public void markReady(String videoKey, String audioKey, String alarmKey, String thumbKey, Integer durationMs) {
@@ -141,5 +142,11 @@ public class Clip {
         this.thumbKey = thumbKey;
         this.durationMs = durationMs;
         this.status = ClipStatus.READY;
+    }
+
+    /** @param reason for the uploader, e.g. that the clip is too long */
+    public void markFailed(String reason) {
+        this.status = ClipStatus.FAILED;
+        this.failureReason = reason;
     }
 }
