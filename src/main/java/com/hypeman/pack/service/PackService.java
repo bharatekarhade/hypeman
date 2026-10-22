@@ -1,6 +1,7 @@
 package com.hypeman.pack.service;
 
 import com.hypeman.common.ApplicationException;
+import com.hypeman.common.Ids;
 import com.hypeman.media.service.MediaStorage;
 import com.hypeman.media.service.MediaStorage.PresignedUpload;
 import com.hypeman.pack.model.CatalogPack;
@@ -13,6 +14,7 @@ import com.hypeman.pack.model.Pack;
 import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.repository.PackRepository;
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -31,15 +33,18 @@ public class PackService {
     private static final String MP4_CONTENT_TYPE = "video/mp4";
     private static final String QUICKTIME_CONTENT_TYPE = "video/quicktime";
     private static final int MAX_TITLE_LENGTH = 60;
+    private static final int MAX_CAPTION_LENGTH = 120;
 
     private final PackRepository packRepository;
     private final ClipRepository clipRepository;
     private final MediaStorage mediaStorage;
+    private final Clock clock;
 
-    public PackService(PackRepository packRepository, ClipRepository clipRepository, MediaStorage mediaStorage) {
+    public PackService(PackRepository packRepository, ClipRepository clipRepository, MediaStorage mediaStorage, Clock clock) {
         this.packRepository = packRepository;
         this.clipRepository = clipRepository;
         this.mediaStorage = mediaStorage;
+        this.clock = clock;
     }
 
     @Transactional
@@ -64,19 +69,26 @@ public class PackService {
         if (pack.getStatus() != PackStatus.DRAFT) {
             throw new ApplicationException("PACK_NOT_EDITABLE", "Only a draft pack can take new clips.");
         }
+        if (caption == null || caption.isBlank() || caption.trim().length() > MAX_CAPTION_LENGTH) {
+            throw new ApplicationException("VALIDATION_FAILED", "The caption must not be blank or over 120 characters.");
+        }
         if (!MP4_CONTENT_TYPE.equalsIgnoreCase(contentType) && !QUICKTIME_CONTENT_TYPE.equalsIgnoreCase(contentType)) {
             throw new ApplicationException("UNSUPPORTED_FILE_TYPE", "Upload an MP4 or MOV video.");
         }
+        String trimmedCaption = caption.trim();
         Clip clip = clipRepository.findByPackIdAndRole(packId, role)
-                .orElseGet(() -> clipRepository.save(new Clip(packId, role, caption)));
-        clip.updateCaption(caption);
+                .orElseGet(() -> clipRepository.save(new Clip(packId, role, trimmedCaption)));
+        clip.updateCaption(trimmedCaption);
         String extension = QUICKTIME_CONTENT_TYPE.equalsIgnoreCase(contentType) ? "mov" : "mp4";
-        clip.uploadStarted(sourceKey(packId, role, clip.getId(), extension));
+        clip.uploadStarted(sourceKey(packId, role, Ids.uuidV7(clock), extension));
         PresignedUpload upload = mediaStorage.presignUpload(clip.getSourceKey(), contentType, sizeBytes);
         return new ClipUpload(clip.getId(), upload.url(), upload.headers(), upload.expiresAt());
     }
 
-    /** Until processing exists, the original upload is played as is. */
+    /**
+     * Until processing exists, the original upload is played as is. Each attempt has its own key, so a file at it can only
+     * be this attempt's upload, never an earlier one's.
+     */
     @Transactional
     public Clip completeClipUpload(UUID clipId) {
         Clip clip = clipRepository.findById(clipId)
@@ -88,9 +100,13 @@ public class PackService {
         return clip;
     }
 
+    /** A draft goes live once all four clips are ready. IN_REVIEW is allowed too, for creator packs once review exists. */
     @Transactional
     public Pack publish(UUID packId) {
         Pack pack = findPack(packId);
+        if (pack.getStatus() != PackStatus.DRAFT && pack.getStatus() != PackStatus.IN_REVIEW) {
+            throw new ApplicationException("PACK_NOT_EDITABLE", "Only a draft pack can be published.");
+        }
         List<Clip> clips = clipRepository.findByPackIdOrderByRole(packId);
         boolean everyRoleReady = Arrays.stream(ClipRole.values())
                 .allMatch(role -> clips.stream().anyMatch(clip -> clip.getRole() == role && clip.getStatus() == ClipStatus.READY));
@@ -105,16 +121,22 @@ public class PackService {
         return packRepository.findByStatusOrderByFeaturedRankAsc(PackStatus.PUBLISHED);
     }
 
-    /** Every published pack with its clips, fetched in two queries however many packs there are. */
+    /** Every published pack with its clips. */
     @Transactional(readOnly = true)
     public List<CatalogPack> catalog() {
-        List<Pack> packs = published();
-        Map<UUID, List<Clip>> clipsByPack = clipRepository.findByPackIdIn(packs.stream().map(Pack::getId).toList()).stream()
-                .sorted(Comparator.comparing(Clip::getRole))
-                .collect(Collectors.groupingBy(Clip::getPackId));
-        return packs.stream()
-                .map(pack -> new CatalogPack(pack, clipsByPack.getOrDefault(pack.getId(), List.of())))
-                .toList();
+        return withClips(published());
+    }
+
+    /** Every pack whatever its status, newest first, for the admin. */
+    @Transactional(readOnly = true)
+    public List<CatalogPack> allPacks() {
+        return withClips(packRepository.findAllByOrderByCreatedAtDesc());
+    }
+
+    /** One pack whatever its status, for the admin. */
+    @Transactional(readOnly = true)
+    public CatalogPack pack(UUID packId) {
+        return withClips(List.of(findPack(packId))).getFirst();
     }
 
     /**
@@ -132,6 +154,16 @@ public class PackService {
         return clipRepository.findByPackIdOrderByRole(packId).stream()
                 .sorted(Comparator.comparing(Clip::getRole))
                 .map(clip -> new ClipMedia(clip.getRole(), clip.getCaption(), mediaStorage.presignDownload(clip.getVideoKey())))
+                .toList();
+    }
+
+    /** The packs with their clips in role order, fetched in two queries however many packs there are. */
+    private List<CatalogPack> withClips(List<Pack> packs) {
+        Map<UUID, List<Clip>> clipsByPack = clipRepository.findByPackIdIn(packs.stream().map(Pack::getId).toList()).stream()
+                .sorted(Comparator.comparing(Clip::getRole))
+                .collect(Collectors.groupingBy(Clip::getPackId));
+        return packs.stream()
+                .map(pack -> new CatalogPack(pack, clipsByPack.getOrDefault(pack.getId(), List.of())))
                 .toList();
     }
 
@@ -159,7 +191,8 @@ public class PackService {
         return base + "-" + n;
     }
 
-    private static String sourceKey(UUID packId, ClipRole role, UUID clipId, String extension) {
-        return "packs/" + packId + "/" + role.name().toLowerCase(Locale.ROOT) + "/source-" + clipId + "." + extension;
+    /** A fresh key per upload attempt: reusing one would let a failed replacement complete with the old file. */
+    private static String sourceKey(UUID packId, ClipRole role, UUID attemptId, String extension) {
+        return "packs/" + packId + "/" + role.name().toLowerCase(Locale.ROOT) + "/source-" + attemptId + "." + extension;
     }
 }

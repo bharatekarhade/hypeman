@@ -111,10 +111,10 @@ class PackServiceTests {
         ClipUpload upload = service.requestClipUpload(pack.getId(), ADMIN, ClipRole.START, "Get up. Do it. Now.", "video/mp4", SIZE);
 
         Clip clip = clips.findById(upload.clipId()).orElseThrow();
-        String key = "packs/" + pack.getId() + "/start/source-" + clip.getId() + ".mp4";
+        String key = clip.getSourceKey();
         assertThat(clip.getStatus()).isEqualTo(ClipStatus.UPLOADING);
         assertThat(clip.getCaption()).isEqualTo("Get up. Do it. Now.");
-        assertThat(clip.getSourceKey()).isEqualTo(key);
+        assertThat(key).matches("packs/" + pack.getId() + "/start/source-[0-9a-f-]{36}\\.mp4");
         assertThat(upload.uploadUrl().getPath()).isEqualTo("/" + key);
         assertThat(upload.headers()).containsEntry("Content-Type", "video/mp4");
         verify(media).presignUpload(eq(key), eq("video/mp4"), eq(SIZE));
@@ -135,6 +135,23 @@ class PackServiceTests {
         assertThat(clip.getSourceKey()).endsWith(".mov");
         assertThat(clip.getVideoKey()).as("the old processed files are forgotten").isNull();
         assertThat(clips.findByPackIdOrderByRole(pack.getId())).hasSize(1);
+    }
+
+    @Test
+    void aReplacementThatNeverReachesS3CannotCompleteWithTheOldVideo() {
+        Pack pack = draft();
+        ClipUpload first = service.requestClipUpload(pack.getId(), ADMIN, ClipRole.START, "Old line.", "video/mp4", SIZE);
+        service.completeClipUpload(first.clipId());
+        String oldKey = clips.findById(first.clipId()).orElseThrow().getSourceKey();
+        // Only the first upload ever reaches S3.
+        when(media.sizeOf(anyString())).thenReturn(-1L);
+        when(media.sizeOf(oldKey)).thenReturn(SIZE);
+
+        service.requestClipUpload(pack.getId(), ADMIN, ClipRole.START, "New line.", "video/mp4", SIZE);
+
+        assertThat(clips.findById(first.clipId()).orElseThrow().getSourceKey()).as("same format, new key").isNotEqualTo(oldKey);
+        assertFailsWith("UPLOAD_NOT_FOUND", () -> service.completeClipUpload(first.clipId()));
+        assertThat(clips.findById(first.clipId()).orElseThrow().getStatus()).isEqualTo(ClipStatus.UPLOADING);
     }
 
     @Test
@@ -169,6 +186,22 @@ class PackServiceTests {
 
         assertFailsWith("PACK_NOT_EDITABLE",
                 () -> service.requestClipUpload(pack.getId(), ADMIN, ClipRole.START, "Sneaky.", "video/mp4", SIZE));
+    }
+
+    @Test
+    void aCaptionMustBeOneToOneHundredTwentyCharacters() {
+        Pack pack = draft();
+
+        assertFailsWith("VALIDATION_FAILED",
+                () -> service.requestClipUpload(pack.getId(), ADMIN, ClipRole.START, "   ", "video/mp4", SIZE));
+        assertFailsWith("VALIDATION_FAILED",
+                () -> service.requestClipUpload(pack.getId(), ADMIN, ClipRole.START, null, "video/mp4", SIZE));
+        assertFailsWith("VALIDATION_FAILED",
+                () -> service.requestClipUpload(pack.getId(), ADMIN, ClipRole.START, "x".repeat(121), "video/mp4", SIZE));
+        assertThat(clips.findByPackIdOrderByRole(pack.getId())).isEmpty();
+
+        UUID clipId = service.requestClipUpload(pack.getId(), ADMIN, ClipRole.START, "  Get up.  ", "video/mp4", SIZE).clipId();
+        assertThat(clips.findById(clipId).orElseThrow().getCaption()).isEqualTo("Get up.");
     }
 
     @Test
@@ -211,6 +244,25 @@ class PackServiceTests {
         service.completeClipUpload(congrats);
         assertThat(service.publish(pack.getId()).getStatus()).isEqualTo(PackStatus.PUBLISHED);
         assertThat(packs.findById(pack.getId()).orElseThrow().getStatus()).isEqualTo(PackStatus.PUBLISHED);
+    }
+
+    @Test
+    void aPackCanOnlyBePublishedOnce() {
+        Pack pack = publishedPack();
+
+        assertFailsWith("PACK_NOT_EDITABLE", () -> service.publish(pack.getId()));
+    }
+
+    @Test
+    void theAdminSeesEveryPackNewestFirstWithItsClips() {
+        Pack published = publishedPack();
+        Pack draft = draft();
+
+        assertThat(service.allPacks()).extracting(entry -> entry.pack().getId())
+                .containsSubsequence(draft.getId(), published.getId());
+        assertThat(service.pack(published.getId()).clips()).extracting(Clip::getRole).containsExactly(ClipRole.values());
+        assertThat(service.pack(draft.getId()).clips()).isEmpty();
+        assertFailsWith("PACK_NOT_FOUND", () -> service.pack(UUID.randomUUID()));
     }
 
     @Test

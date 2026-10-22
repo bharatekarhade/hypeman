@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
@@ -34,16 +35,39 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.util.StringUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(AuthProperties.class)
+@EnableConfigurationProperties({AuthProperties.class, AdminProperties.class})
 class SecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+    private static final int MIN_ADMIN_TOKEN_LENGTH = 32;
+
+    /** The admin endpoints take only the shared admin token; user access tokens don't work there. */
+    @Bean
+    @Order(1)
+    SecurityFilterChain adminSecurity(HttpSecurity http, JsonMapper json, AdminProperties properties) throws Exception {
+        if (!StringUtils.hasText(properties.token())) {
+            log.info("No admin token set; the admin endpoints turn every request away.");
+        } else if (properties.token().length() < MIN_ADMIN_TOKEN_LENGTH) {
+            throw new IllegalStateException("HYPEMAN_ADMIN_TOKEN must be at least " + MIN_ADMIN_TOKEN_LENGTH + " characters.");
+        }
+        AuthenticationEntryPoint unauthorized = (request, response, e) ->
+                write(response, json, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED", "This needs the admin token.");
+        http.securityMatcher("/v1/admin/**")
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(new AdminTokenFilter(properties.token()), AnonymousAuthenticationFilter.class)
+                .authorizeHttpRequests(requests -> requests.anyRequest().hasRole("ADMIN"))
+                .exceptionHandling(errors -> errors.authenticationEntryPoint(unauthorized));
+        return http.build();
+    }
 
     @Bean
+    @Order(2)
     SecurityFilterChain apiSecurity(HttpSecurity http, JsonMapper json) throws Exception {
         AuthenticationEntryPoint unauthorized = (request, response, e) ->
                 write(response, json, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED", "Sign in to do this.");
