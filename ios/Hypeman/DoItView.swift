@@ -1,9 +1,12 @@
+import AVFoundation
 import HypemanKit
 import SwiftUI
 
 /// The full-screen moment after DO IT: the hype figure, the goal and a running timer until DONE.
 struct DoItView: View {
     let goal: Goal
+    /// Nil for the default pack.
+    let pack: InstalledPack?
     let done: () -> Void
     let close: () -> Void
 
@@ -44,11 +47,18 @@ struct DoItView: View {
     private var stage: some View {
         ZStack(alignment: .bottom) {
             Theme.stage
-            HypeFigure(color: Theme.stageFigure, sparks: Theme.accent)
-                .frame(maxWidth: 260, maxHeight: 338)
-                .padding(.bottom, 64)
-            Text("GET UP. DO IT. NOW.")
+            if PackLibrary.shared.videoURL(for: .start) != nil {
+                PlayerLayerView(player: YellPlayer.shared.player)
+                    .accessibilityHidden(true)
+            } else {
+                HypeFigure(color: Theme.stageFigure, sparks: Theme.accent)
+                    .frame(maxWidth: 260, maxHeight: 338)
+                    .padding(.bottom, 64)
+            }
+            Text((pack?.caption(for: .start) ?? "Get up. Do it. Now.").uppercased())
                 .font(Theme.display(34))
+                .lineLimit(3)
+                .minimumScaleFactor(0.5)
                 .foregroundStyle(Theme.captionInk)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
@@ -57,7 +67,8 @@ struct DoItView: View {
         }
         .overlay(alignment: .top) {
             HStack {
-                Text("Default pack")
+                Text(pack?.title ?? "Default pack")
+                    .lineLimit(1)
                     .font(Theme.text(12, weight: .bold, relativeTo: .caption))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
@@ -84,6 +95,8 @@ struct DoItView: View {
 struct DoneView: View {
     let goal: Goal
     let next: Goal?
+    /// Nil for the default pack.
+    let pack: InstalledPack?
     let doNext: (Goal) -> Void
     let close: () -> Void
 
@@ -104,7 +117,7 @@ struct DoneView: View {
                     .font(Theme.display(150))
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
-                Text("“That’s what I’m talking about.”")
+                Text("“\(pack?.caption(for: .congrats) ?? "That’s what I’m talking about.")”")
                     .font(Theme.text(20, weight: .bold, relativeTo: .title3))
                     .padding(.top, 10)
                     .padding(.bottom, 28)
@@ -165,5 +178,26 @@ struct DoneView: View {
         guard let startedAt = goal.startedAt, let completedAt = goal.completedAt else { return nil }
         let minutes = max(1, Int((completedAt.timeIntervalSince(startedAt) / 60).rounded()))
         return minutes < 60 ? "\(minutes) min" : "\(minutes / 60) h \(minutes % 60) min"
+    }
+}
+
+/// The yell's video, filling the stage. The picture comes from YellPlayer's player, which is already playing the clip.
+private struct PlayerLayerView: UIViewRepresentable {
+    let player: AVPlayer
+
+    func makeUIView(context: Context) -> PlayerView {
+        let view = PlayerView()
+        view.playerLayer.videoGravity = .resizeAspectFill
+        view.playerLayer.player = player
+        return view
+    }
+
+    func updateUIView(_ view: PlayerView, context: Context) {
+        view.playerLayer.player = player
+    }
+
+    final class PlayerView: UIView {
+        override static var layerClass: AnyClass { AVPlayerLayer.self }
+        var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
     }
 }
