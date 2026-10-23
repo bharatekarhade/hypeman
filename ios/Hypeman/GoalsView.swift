@@ -17,6 +17,7 @@ struct GoalsView: View {
     @State private var activePack = PackLibrary.shared.active
     @State private var showPacks = false
     @State private var showLock = false
+    @State private var showAccount = false
     @State private var reminderGoal: Goal?
     /// A tapped notification's goal, waiting for an open sheet to finish closing.
     @State private var pendingStart: UUID?
@@ -110,6 +111,9 @@ struct GoalsView: View {
         .sheet(isPresented: $showLock, onDismiss: startPending) {
             LockSheet()
         }
+        .sheet(isPresented: $showAccount, onDismiss: startPending) {
+            AccountSheet()
+        }
         .sheet(item: $reminderGoal, onDismiss: startPending) { goal in
             ReminderSheet(goal: goal) { date in
                 run { try GoalStore.setReminder(goal.id, at: date, in: context) }
@@ -148,6 +152,17 @@ struct GoalsView: View {
                     .foregroundStyle(Theme.muted)
             }
             Spacer(minLength: 12)
+            Button { showAccount = true } label: {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(width: 36, height: 36)
+                    .background(Theme.surface, in: Circle())
+                    .overlay(Circle().stroke(Theme.line))
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            .accessibilityLabel("Account")
             Button { showLock = true } label: {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 13, weight: .bold))
@@ -229,10 +244,11 @@ struct GoalsView: View {
     private func startFromNotification(_ goalID: UUID?) {
         guard let goalID else { return }
         NotificationRouter.shared.goalToStart = nil
-        if showPacks || showLock || reminderGoal != nil {
+        if showPacks || showLock || showAccount || reminderGoal != nil {
             pendingStart = goalID
             showPacks = false
             showLock = false
+            showAccount = false
             reminderGoal = nil
         } else {
             start(goalID)

@@ -27,6 +27,7 @@ struct HypemanApp: App {
                 LiveActivities.sync(in: GoalStore.container.mainContext)
                 // Lowers the lock if Screen Time permission was revoked in Settings meanwhile.
                 AppLock.sync(in: GoalStore.container.mainContext)
+                Task { await Account.shared.checkAppleCredential() }
             }
         }
     }

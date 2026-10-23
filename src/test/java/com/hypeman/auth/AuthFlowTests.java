@@ -63,7 +63,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 @ActiveProfiles("local")
 class AuthFlowTests {
 
-    private static final String APPLE_CLIENT_ID = "com.bharatekarhade.hypeman";
+    private static final String APPLE_CLIENT_ID = "com.hypeman.app";
     private static final RSAKey PROVIDER_KEY = generateKey();
     private static final NimbusJwtEncoder PROVIDER = new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(PROVIDER_KEY)));
     private static final FakeAppleServer APPLE = new FakeAppleServer(APPLE_CLIENT_ID,
@@ -113,6 +113,15 @@ class AuthFlowTests {
         assertThat(read(me, "$.identities[0].email")).isEqualTo(subject + "@privaterelay.appleid.com");
     }
 
+    /** The app parses expiry as ISO 8601 text to refresh ahead of time, so it must not become epoch numbers. */
+    @Test
+    void tokenExpiryIsAnIsoInstant() throws Exception {
+        MvcTestResult signIn = signInWithApple(newSubject(), UUID.randomUUID());
+
+        assertThat(Instant.parse(read(signIn, "$.accessTokenExpiresAt"))).isAfter(Instant.now());
+        assertThat(Instant.parse(read(refresh(read(signIn, "$.refreshToken")), "$.accessTokenExpiresAt"))).isAfter(Instant.now());
+    }
+
     @Test
     void appleSignInRejectsATokenMintedForAnotherSignIn() throws Exception {
         String token = appleToken(newSubject(), "the-nonce-apple-saw", APPLE_CLIENT_ID);
@@ -121,6 +130,16 @@ class AuthFlowTests {
                 {"identityToken": "%s", "nonce": "a-different-nonce", "deviceId": "%s"}""".formatted(token, UUID.randomUUID()));
 
         assertError(result, HttpStatus.UNAUTHORIZED, "INVALID_IDENTITY_TOKEN");
+    }
+
+    @Test
+    void appleSignInAcceptsThePersonalTeamBuild() throws Exception {
+        String token = appleToken(newSubject(), "nonce", "com.bharatekarhade.hypeman");
+
+        MvcTestResult result = post("/v1/auth/apple", """
+                {"identityToken": "%s", "nonce": "nonce", "deviceId": "%s"}""".formatted(token, UUID.randomUUID()));
+
+        assertThat(result).hasStatusOk();
     }
 
     @Test

@@ -24,18 +24,71 @@ public struct HypemanAPI: Sendable {
         return response.clips
     }
 
-    private func send<T: Decodable>(_ method: String, _ path: String) async throws -> T {
+    /// Signs in with the identity token Apple returned, which carries the SHA-256 of `nonce`. A device has one account
+    /// at a time: whoever was signed in on it before is signed out there.
+    public func signInWithApple(identityToken: String, nonce: String, deviceID: UUID) async throws -> SignInResponse {
+        try await send("POST", "v1/auth/apple", body: ["identityToken": identityToken, "nonce": nonce, "deviceId": deviceID.uuidString])
+    }
+
+    /// Swaps a refresh token for a new pair. Each refresh token works once; sending one twice signs the device out.
+    public func refresh(_ refreshToken: String) async throws -> TokenPair {
+        try await send("POST", "v1/auth/refresh", body: ["refreshToken": refreshToken])
+    }
+
+    public func logout(refreshToken: String, accessToken: String) async throws {
+        let _: Empty = try await send("POST", "v1/auth/logout", body: ["refreshToken": refreshToken], token: accessToken)
+    }
+
+    public func me(accessToken: String) async throws -> Me {
+        try await send("GET", "v1/me", token: accessToken)
+    }
+
+    /// An Apple account needs a fresh authorization code from Sign in with Apple, so the server can revoke the sign-in.
+    public func deleteAccount(appleAuthorizationCode: String?, accessToken: String) async throws {
+        let body = appleAuthorizationCode.map { ["appleAuthorizationCode": $0] }
+        let _: Empty = try await send("DELETE", "v1/me", body: body, token: accessToken)
+    }
+
+    private func send<T: Decodable>(_ method: String, _ path: String, body: [String: String]? = nil, token: String? = nil) async throws -> T {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(body)
+        }
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         let (data, response) = try await session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             throw (try? JSONDecoder().decode(APIError.self, from: data))
                 ?? APIError(code: "HTTP_\(status)", message: "Something went wrong on our side. Please try again.", requestId: nil)
         }
-        return try JSONDecoder().decode(T.self, from: data)
+        if T.self == Empty.self {
+            return Empty() as! T
+        }
+        return try Self.decoder.decode(T.self, from: data)
     }
+
+    /// Instants come as ISO 8601, with or without fractions of a second.
+    private static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let text = try container.decode(String.self)
+            let whole = text.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression)
+            guard let date = try? Date(whole, strategy: .iso8601) else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Not an ISO 8601 instant: \(text)")
+            }
+            return date
+        }
+        return decoder
+    }()
+
+    /// For 202 and 204 responses.
+    private struct Empty: Decodable {}
 
     private static var configuredBaseURL: URL {
         if let value = Bundle.main.object(forInfoDictionaryKey: "HypemanAPIBaseURL") as? String, let url = URL(string: value) {
@@ -49,11 +102,46 @@ public struct HypemanAPI: Sendable {
     }
 }
 
+public struct SignInResponse: Decodable, Sendable {
+    public let accessToken: String
+    public let accessTokenExpiresAt: Date
+    public let refreshToken: String
+    public let user: User
+}
+
+public struct TokenPair: Decodable, Sendable {
+    public let accessToken: String
+    public let accessTokenExpiresAt: Date
+    public let refreshToken: String
+}
+
+public struct User: Codable, Equatable, Sendable {
+    public let id: UUID
+    public let displayName: String?
+}
+
+public struct Me: Decodable, Equatable, Sendable {
+    public struct Identity: Decodable, Equatable, Sendable {
+        public let provider: String
+        public let email: String?
+    }
+
+    public let user: User
+    public let identities: [Identity]
+    public let proUntil: Date?
+}
+
 public struct APIError: Error, Decodable, Equatable, LocalizedError, Sendable {
     public let code: String
     public let message: String
     /// Quote it in bug reports: it's on the server's log lines for this request.
     public let requestId: String?
+
+    public init(code: String, message: String, requestId: String?) {
+        self.code = code
+        self.message = message
+        self.requestId = requestId
+    }
 
     public var errorDescription: String? { message }
 }
