@@ -108,6 +108,9 @@ class PackControllerTests {
         assertThat(this.<List<String>>read(result, "$.clips[*].videoUrl"))
                 .hasSize(4)
                 .allMatch(url -> url.startsWith("https://s3.test/packs/" + pack.getId() + "/") && url.endsWith("?signed"));
+        assertThat(this.<List<String>>read(result, "$.clips[*].alarmUrl"))
+                .hasSize(4)
+                .allMatch(url -> url.matches("https://s3\\.test/packs/" + pack.getId() + "/[a-z]+/alarm-.+\\.caf\\?signed"));
     }
 
     @Test

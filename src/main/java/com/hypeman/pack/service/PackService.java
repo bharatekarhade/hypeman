@@ -168,7 +168,8 @@ public class PackService {
         }
         return clipRepository.findByPackIdOrderByRole(packId).stream()
                 .sorted(Comparator.comparing(Clip::getRole))
-                .map(clip -> new ClipMedia(clip.getRole(), clip.getCaption(), mediaStorage.presignDownload(clip.getVideoKey())))
+                .map(clip -> new ClipMedia(clip.getRole(), clip.getCaption(), mediaStorage.presignDownload(clip.getVideoKey()),
+                        clip.getAlarmKey() != null ? mediaStorage.presignDownload(clip.getAlarmKey()) : null))
                 .toList();
     }
 

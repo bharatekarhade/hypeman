@@ -37,6 +37,33 @@ struct PackLibraryTests {
         #expect(library.videoURL(for: .reminder)?.lastPathComponent == "reminder.mov")
     }
 
+    @Test func theReminderAndNagAlarmsBecomeNotificationSounds() async throws {
+        let pack = catalogPack()
+
+        let installed = try await library.install(pack, media: media(for: pack), session: session)
+
+        let reminder = try #require(library.soundName(for: .reminder))
+        #expect(reminder == "hypeman-\(pack.id.uuidString.lowercased())-reminder.caf")
+        #expect(try String(contentsOf: root.appending(path: "Library/Sounds/\(reminder)"), encoding: .utf8) == "alarm-reminder.caf")
+        #expect(library.soundName(for: .nag) != nil)
+        #expect(library.soundName(for: .start) == nil, "only reminders and nags are notifications")
+        #expect(installed.clips.first { $0.role == .congrats }?.soundName == nil)
+    }
+
+    @Test func switchingPacksSwapsTheSounds() async throws {
+        let first = catalogPack()
+        try await library.install(first, media: media(for: first), session: session)
+        let second = catalogPack(title: "Study Buddy")
+        try await library.install(second, media: media(for: second), session: session)
+
+        let sounds = try FileManager.default.contentsOfDirectory(atPath: root.appending(path: "Library/Sounds").path())
+        #expect(Set(sounds) == ["reminder", "nag"].reduce(into: Set<String>()) { $0.insert("hypeman-\(second.id.uuidString.lowercased())-\($1).caf") })
+
+        try library.useDefault()
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.appending(path: "Library/Sounds").path()).isEmpty)
+        #expect(library.soundName(for: .reminder) == nil)
+    }
+
     @Test func installingAnotherPackReplacesTheFirst() async throws {
         let first = catalogPack()
         try await library.install(first, media: media(for: first), session: session)
@@ -110,7 +137,8 @@ struct PackLibraryTests {
             let name = role.rawValue.lowercased()
             let file = role == missing ? "missing.mp4" : "source-\(name).\(role == .reminder ? "mov" : "mp4")"
             return ClipMedia(role: role, caption: "Line for \(role.rawValue)",
-                             videoUrl: URL(string: "https://s3.test/packs/\(pack.id)/\(name)/\(file)?X-Amz-Signature=abc")!)
+                             videoUrl: URL(string: "https://s3.test/packs/\(pack.id)/\(name)/\(file)?X-Amz-Signature=abc")!,
+                             alarmUrl: URL(string: "https://s3.test/packs/\(pack.id)/\(name)/alarm-\(name).caf?X-Amz-Signature=abc")!)
         }
     }
 }

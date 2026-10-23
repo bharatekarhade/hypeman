@@ -16,6 +16,7 @@ struct GoalsView: View {
     @State private var focus: Focus?
     @State private var activePack = PackLibrary.shared.active
     @State private var showPacks = false
+    @State private var reminderGoal: Goal?
 
     private let log = Logger(subsystem: "com.hypeman.app", category: "GoalsView")
 
@@ -46,6 +47,9 @@ struct GoalsView: View {
                         .tint(.green)
                 }
                 .contextMenu {
+                    Button(goal.reminderAt == nil ? "Remind me" : "Change reminder", systemImage: "bell") {
+                        reminderGoal = goal
+                    }
                     Button("Edit title", systemImage: "pencil") {
                         editingGoal = goal
                         editedTitle = goal.title
@@ -96,6 +100,11 @@ struct GoalsView: View {
         }
         .sheet(isPresented: $showPacks) {
             PacksView(active: $activePack)
+        }
+        .sheet(item: $reminderGoal) { goal in
+            ReminderSheet(goal: goal) { date in
+                run { try GoalStore.setReminder(goal.id, at: date, in: context) }
+            }
         }
         .alert("Edit goal", isPresented: $showEditor) {
             TextField("Goal title", text: $editedTitle)

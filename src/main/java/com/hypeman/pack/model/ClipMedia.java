@@ -2,6 +2,10 @@ package com.hypeman.pack.model;
 
 import java.net.URI;
 
-/** @param videoUrl a short-lived signed download link */
-public record ClipMedia(ClipRole role, String caption, URI videoUrl) {
+/**
+ * Short-lived signed download links for one clip.
+ *
+ * @param alarmUrl the notification sound (CAF), or null for a clip processed before alarms existed
+ */
+public record ClipMedia(ClipRole role, String caption, URI videoUrl, URI alarmUrl) {
 }

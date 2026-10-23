@@ -1,11 +1,13 @@
 import HypemanKit
 import OSLog
+import SwiftData
 import SwiftUI
 
 /// Picks who yells: the bundled default pack or a free pack from the store, downloaded whole before it takes over.
 struct PacksView: View {
     @Binding var active: InstalledPack?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
     @State private var phase = Phase.loading
     @State private var installing: UUID?
     @State private var failure: String?
@@ -111,6 +113,7 @@ struct PacksView: View {
             do {
                 let media = try await HypemanAPI.shared.media(for: pack.id)
                 active = try await PackLibrary.shared.install(pack, media: media)
+                Reminders.sync(in: context)
             } catch {
                 log.error("Could not install \(pack.slug): \(error)")
                 failure = (error as? APIError)?.message ?? "The download didn’t finish. Your current pack is still on."
@@ -122,6 +125,7 @@ struct PacksView: View {
         do {
             try PackLibrary.shared.useDefault()
             active = nil
+            Reminders.sync(in: context)
         } catch {
             log.error("Could not remove the pack: \(error)")
             failure = "Please try again."

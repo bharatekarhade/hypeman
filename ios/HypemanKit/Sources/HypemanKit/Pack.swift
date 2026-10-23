@@ -18,11 +18,13 @@ public struct CatalogClip: Codable, Hashable, Sendable {
     public let caption: String
 }
 
-/// One clip's signed download link, from `POST /v1/packs/{id}/media`. The link expires within the hour.
+/// One clip's signed download links, from `POST /v1/packs/{id}/media`. They expire within the hour.
 public struct ClipMedia: Codable, Hashable, Sendable {
     public let role: ClipRole
     public let caption: String
     public let videoUrl: URL
+    /// The notification sound, or nil for a clip processed before the server made them.
+    public var alarmUrl: URL?
 }
 
 /// The pack on this phone that yells, as saved next to its videos.
@@ -36,6 +38,8 @@ public struct InstalledPack: Codable, Equatable, Sendable {
         public let caption: String
         /// The video's name inside the pack's folder.
         public let fileName: String
+        /// The notification sound's name in the App Group's Library/Sounds, for REMINDER and NAG clips that have one.
+        public var soundName: String?
     }
 
     public func caption(for role: ClipRole) -> String? {

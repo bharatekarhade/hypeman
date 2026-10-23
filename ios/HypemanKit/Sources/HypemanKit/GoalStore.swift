@@ -47,6 +47,13 @@ public enum GoalStore {
         try save(context)
     }
 
+    /// Nil clears the reminder. Reminders are notifications, so ask for permission before the first one.
+    public static func setReminder(_ id: UUID, at date: Date?, in context: ModelContext) throws {
+        guard let goal = try goal(id, in: context), goal.completedAt == nil else { return }
+        goal.reminderAt = date
+        try save(context)
+    }
+
     public static func rename(_ id: UUID, title: String, in context: ModelContext) throws {
         let title = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Goal.maxTitleLength))
         guard !title.isEmpty, let goal = try goal(id, in: context) else { return }
@@ -90,5 +97,6 @@ public enum GoalStore {
             throw error
         }
         WidgetCenter.shared.reloadAllTimelines()
+        Reminders.sync(in: context)
     }
 }
