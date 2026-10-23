@@ -55,8 +55,7 @@ public enum Reminders {
         }
     }
 
-    /// Waits until the notification center has taken every sync so far. Background handlers (Snooze, widget buttons)
-    /// await this before returning, since iOS can suspend the process as soon as they do.
+    /// Waits until the notification center has taken every sync so far. See GoalStore.synced().
     public static func scheduled() async {
         await latest.withLock { $0 }?.value
     }

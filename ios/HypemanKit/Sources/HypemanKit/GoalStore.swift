@@ -61,6 +61,13 @@ public enum GoalStore {
         try save(context)
     }
 
+    /// Waits until the notifications and Live Activities match the last save. Code running in the background (the
+    /// Snooze button, widget buttons) awaits this before returning, since iOS can suspend the process as soon as it does.
+    public static func synced() async {
+        await Reminders.scheduled()
+        await LiveActivities.updated()
+    }
+
     public static func rename(_ id: UUID, title: String, in context: ModelContext) throws {
         let title = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Goal.maxTitleLength))
         guard !title.isEmpty, let goal = try goal(id, in: context) else { return }
@@ -105,5 +112,6 @@ public enum GoalStore {
         }
         WidgetCenter.shared.reloadAllTimelines()
         Reminders.sync(in: context)
+        LiveActivities.sync(in: context)
     }
 }

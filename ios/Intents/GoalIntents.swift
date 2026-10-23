@@ -25,14 +25,14 @@ struct StartGoalIntent: AudioPlaybackIntent {
         }
         try GoalStore.start(id, in: context)
         YellPlayer.shared.play(.start)
-        // Starting cancels the nags; let that land before the app can be suspended.
-        await Reminders.scheduled()
+        // Starting cancels the nags and starts the Live Activity; let that land before the app can be suspended.
+        await GoalStore.synced()
         return .result()
     }
 }
 
-/// Done on the widget, and later on the Live Activity it ends (DI-05). Live Activity intents also run in the
-/// app's process, so an open goal list updates at once.
+/// Done on the widget and on the started goal's Live Activity, which completing ends. Live Activity intents run in
+/// the app's process, so an open goal list updates at once.
 struct CompleteGoalIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Done"
     static let isDiscoverable = false
@@ -51,7 +51,7 @@ struct CompleteGoalIntent: LiveActivityIntent {
         if let id = UUID(uuidString: goalID) {
             try GoalStore.complete(id, in: GoalStore.container.mainContext)
         }
-        await Reminders.scheduled()
+        await GoalStore.synced()
         return .result()
     }
 }

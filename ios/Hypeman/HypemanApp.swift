@@ -5,6 +5,8 @@ import UserNotifications
 
 @main
 struct HypemanApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
         Theme.registerFonts()
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
@@ -18,6 +20,13 @@ struct HypemanApp: App {
             GoalsView()
         }
         .modelContainer(GoalStore.container)
+        .onChange(of: scenePhase) { _, phase in
+            // A Live Activity can only start while the app is in front, so a goal started from the widget gets its
+            // activity here.
+            if phase == .active {
+                LiveActivities.sync(in: GoalStore.container.mainContext)
+            }
+        }
     }
 }
 
@@ -51,7 +60,7 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate, S
             }
         }
         // Snooze runs in the background; returning lets iOS suspend the app before the new reminders are in.
-        await Reminders.scheduled()
+        await GoalStore.synced()
     }
 }
 
