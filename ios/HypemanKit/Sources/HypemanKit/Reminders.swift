@@ -100,16 +100,36 @@ public enum Reminders {
     private static func request(_ goal: Goal, role: ClipRole, at date: Date, id: String, body: String, sound: String?,
                                 now: Date) -> UNNotificationRequest? {
         guard date > now else { return nil }
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        return UNNotificationRequest(identifier: "\(goal.id.uuidString)-\(id)",
+                                     content: content(goalID: goal.id, title: goal.title, role: role, body: body, sound: sound),
+                                     trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
+    }
+
+    private static func content(goalID: UUID, title: String, role: ClipRole, body: String, sound: String?) -> UNNotificationContent {
         let content = UNMutableNotificationContent()
-        content.title = goal.title
+        content.title = title
         content.body = body
         content.sound = sound.map { UNNotificationSound(named: UNNotificationSoundName($0)) } ?? .default
-        content.threadIdentifier = goal.id.uuidString
+        content.threadIdentifier = goalID.uuidString
         content.categoryIdentifier = category
-        content.userInfo = ["goalID": goal.id.uuidString, "role": role.rawValue]
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-        return UNNotificationRequest(identifier: "\(goal.id.uuidString)-\(id)", content: content,
-                                     trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
+        content.userInfo = ["goalID": goalID.uuidString, "role": role.rawValue]
+        return content
+    }
+
+    /// For the lock screen's DO IT button, which can't open the app itself: a notification now that starts the goal
+    /// when tapped, like a reminder.
+    public static func notifyNow(goalID: UUID, title: String) async {
+        guard let center else { return }
+        let request = UNNotificationRequest(identifier: "\(goalID.uuidString)-unlock",
+                                            content: content(goalID: goalID, title: title, role: .reminder,
+                                                             body: "Tap to start. Your apps unlock when you do.", sound: nil),
+                                            trigger: nil)
+        do {
+            try await center.add(request)
+        } catch {
+            log.error("Could not send the unlock notification for \(goalID): \(error)")
+        }
     }
 
     /// Nil in unit tests, which run without an app bundle; UNUserNotificationCenter crashes there.

@@ -113,5 +113,6 @@ public enum GoalStore {
         WidgetCenter.shared.reloadAllTimelines()
         Reminders.sync(in: context)
         LiveActivities.sync(in: context)
+        AppLock.sync(in: context)
     }
 }

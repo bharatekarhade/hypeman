@@ -25,6 +25,8 @@ struct HypemanApp: App {
             // activity here.
             if phase == .active {
                 LiveActivities.sync(in: GoalStore.container.mainContext)
+                // Lowers the lock if Screen Time permission was revoked in Settings meanwhile.
+                AppLock.sync(in: GoalStore.container.mainContext)
             }
         }
     }

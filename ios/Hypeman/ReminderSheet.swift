@@ -73,7 +73,8 @@ struct ReminderSheet: View {
 
     private var nagsNote: String {
         let minutes = Reminders.nagDelays.map { "\(Int($0 / 60))" }.joined(separator: " and ")
-        return "Not started by then? You’ll get nagged \(minutes) minutes later."
+        let lock = AppLock.isOn ? ", and your picked apps lock until you start" : ""
+        return "Not started by then? You’ll get nagged \(minutes) minutes later\(lock)."
     }
 
     private func setReminder() {
