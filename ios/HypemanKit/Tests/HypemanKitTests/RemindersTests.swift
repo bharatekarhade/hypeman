@@ -17,6 +17,8 @@ struct RemindersTests {
         #expect(requests.allSatisfy { $0.content.title == "Leg day" && $0.content.threadIdentifier == goal.id.uuidString })
         #expect(requests.map(\.content.body) == ["Time to do it.", "Still not started. Get up.", "Still not started. Get up."])
         #expect(requests.allSatisfy { $0.content.sound == .default })
+        #expect(requests.allSatisfy { $0.content.categoryIdentifier == Reminders.category })
+        #expect(requests.allSatisfy { Reminders.goalID(of: $0.content.userInfo) == goal.id })
     }
 
     @Test func aPackSuppliesTheLinesAndSounds() {

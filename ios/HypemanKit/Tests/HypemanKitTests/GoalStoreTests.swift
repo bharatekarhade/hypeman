@@ -32,6 +32,29 @@ struct GoalStoreTests {
         #expect(try GoalStore.remaining(in: context).map(\.title) == ["Finish chapter 4"])
     }
 
+    @Test func snoozeMovesTheReminderTenMinutesOut() throws {
+        try GoalStore.add(title: "Leg day", in: context)
+        let goal = try #require(try GoalStore.remaining(in: context).first)
+        try GoalStore.setReminder(goal.id, at: .now.addingTimeInterval(-60), in: context)
+
+        try GoalStore.snooze(goal.id, in: context)
+
+        let reminderAt = try #require(goal.reminderAt)
+        #expect(abs(reminderAt.timeIntervalSinceNow - Reminders.snoozeInterval) < 5)
+    }
+
+    @Test func snoozingAStartedGoalDoesNothing() throws {
+        try GoalStore.add(title: "Leg day", in: context)
+        let goal = try #require(try GoalStore.remaining(in: context).first)
+        let reminder = Date.now.addingTimeInterval(-60)
+        try GoalStore.setReminder(goal.id, at: reminder, in: context)
+        try GoalStore.start(goal.id, in: context)
+
+        try GoalStore.snooze(goal.id, in: context)
+
+        #expect(goal.reminderAt == reminder)
+    }
+
     @Test func startKeepsTheFirstStartTime() throws {
         try GoalStore.add(title: "Leg day", in: context)
         let goal = try #require(try GoalStore.remaining(in: context).first)

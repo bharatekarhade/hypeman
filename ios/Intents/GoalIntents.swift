@@ -25,6 +25,8 @@ struct StartGoalIntent: AudioPlaybackIntent {
         }
         try GoalStore.start(id, in: context)
         YellPlayer.shared.play(.start)
+        // Starting cancels the nags; let that land before the app can be suspended.
+        await Reminders.scheduled()
         return .result()
     }
 }
@@ -49,6 +51,7 @@ struct CompleteGoalIntent: LiveActivityIntent {
         if let id = UUID(uuidString: goalID) {
             try GoalStore.complete(id, in: GoalStore.container.mainContext)
         }
+        await Reminders.scheduled()
         return .result()
     }
 }

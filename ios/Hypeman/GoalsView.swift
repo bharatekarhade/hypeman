@@ -17,6 +17,8 @@ struct GoalsView: View {
     @State private var activePack = PackLibrary.shared.active
     @State private var showPacks = false
     @State private var reminderGoal: Goal?
+    /// A tapped notification's goal, waiting for an open sheet to finish closing.
+    @State private var pendingStart: UUID?
 
     private let log = Logger(subsystem: "com.hypeman.app", category: "GoalsView")
 
@@ -95,13 +97,16 @@ struct GoalsView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.ink)
         .safeAreaInset(edge: .bottom) { addBar }
+        .onChange(of: NotificationRouter.shared.goalToStart, initial: true) { _, goalID in
+            startFromNotification(goalID)
+        }
         .fullScreenCover(item: $focus) { focus in
             focusScreen(focus)
         }
-        .sheet(isPresented: $showPacks) {
+        .sheet(isPresented: $showPacks, onDismiss: startPending) {
             PacksView(active: $activePack)
         }
-        .sheet(item: $reminderGoal) { goal in
+        .sheet(item: $reminderGoal, onDismiss: startPending) { goal in
             ReminderSheet(goal: goal) { date in
                 run { try GoalStore.setReminder(goal.id, at: date, in: context) }
             }
@@ -201,6 +206,32 @@ struct GoalsView: View {
     private func add() {
         if run({ try GoalStore.add(title: newTitle, in: context) }) {
             newTitle = ""
+        }
+    }
+
+    /// A tapped reminder or nag: DO IT for that goal, if it's still on the list. An open sheet would block the DO IT
+    /// screen, so it's closed first and the goal starts once it's gone.
+    private func startFromNotification(_ goalID: UUID?) {
+        guard let goalID else { return }
+        NotificationRouter.shared.goalToStart = nil
+        if showPacks || reminderGoal != nil {
+            pendingStart = goalID
+            showPacks = false
+            reminderGoal = nil
+        } else {
+            start(goalID)
+        }
+    }
+
+    private func startPending() {
+        guard let goalID = pendingStart else { return }
+        pendingStart = nil
+        start(goalID)
+    }
+
+    private func start(_ goalID: UUID) {
+        if let goal = goals.first(where: { $0.id == goalID }) {
+            doIt(goal)
         }
     }
 

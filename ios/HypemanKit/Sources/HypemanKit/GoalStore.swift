@@ -54,6 +54,13 @@ public enum GoalStore {
         try save(context)
     }
 
+    /// The Snooze button: the reminder moves to ten minutes from now and the nags follow from there.
+    public static func snooze(_ id: UUID, in context: ModelContext) throws {
+        guard let goal = try goal(id, in: context), goal.completedAt == nil, goal.startedAt == nil else { return }
+        goal.reminderAt = .now.addingTimeInterval(Reminders.snoozeInterval)
+        try save(context)
+    }
+
     public static func rename(_ id: UUID, title: String, in context: ModelContext) throws {
         let title = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Goal.maxTitleLength))
         guard !title.isEmpty, let goal = try goal(id, in: context) else { return }
