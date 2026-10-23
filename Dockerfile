@@ -13,6 +13,10 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q package -DskipTests \
 
 # Run: JRE only, as a non-root user.
 FROM eclipse-temurin:25-jre
+# ffmpeg and ffprobe process uploaded clips (ClipTranscoder).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --uid 10001 app
 WORKDIR /app
 COPY --from=build /workspace/extracted/dependencies/ ./

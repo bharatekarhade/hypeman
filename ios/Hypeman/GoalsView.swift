@@ -14,6 +14,9 @@ struct GoalsView: View {
     @State private var showEditor = false
     @State private var showSaveError = false
     @State private var focus: Focus?
+    @State private var activePack = PackLibrary.shared.active
+    @State private var showPacks = false
+    @State private var reminderGoal: Goal?
 
     private let log = Logger(subsystem: "com.hypeman.app", category: "GoalsView")
 
@@ -44,6 +47,9 @@ struct GoalsView: View {
                         .tint(.green)
                 }
                 .contextMenu {
+                    Button(goal.reminderAt == nil ? "Remind me" : "Change reminder", systemImage: "bell") {
+                        reminderGoal = goal
+                    }
                     Button("Edit title", systemImage: "pencil") {
                         editingGoal = goal
                         editedTitle = goal.title
@@ -92,6 +98,14 @@ struct GoalsView: View {
         .fullScreenCover(item: $focus) { focus in
             focusScreen(focus)
         }
+        .sheet(isPresented: $showPacks) {
+            PacksView(active: $activePack)
+        }
+        .sheet(item: $reminderGoal) { goal in
+            ReminderSheet(goal: goal) { date in
+                run { try GoalStore.setReminder(goal.id, at: date, in: context) }
+            }
+        }
         .alert("Edit goal", isPresented: $showEditor) {
             TextField("Goal title", text: $editedTitle)
             Button("Cancel", role: .cancel) { editingGoal = nil }
@@ -115,13 +129,33 @@ struct GoalsView: View {
     private var header: some View {
         let doneToday = completedGoals.filter { $0.completedAt.map(Calendar.current.isDateInToday) ?? false }.count
         let total = goals.count + doneToday
-        return VStack(alignment: .leading, spacing: 4) {
-            Text("TODAY")
-                .font(Theme.display(46))
-                .accessibilityAddTraits(.isHeader)
-            Text("\(total) \(total == 1 ? "goal" : "goals") · \(doneToday) done")
-                .font(Theme.text(14, relativeTo: .subheadline))
-                .foregroundStyle(Theme.muted)
+        return HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("TODAY")
+                    .font(Theme.display(46))
+                    .accessibilityAddTraits(.isHeader)
+                Text("\(total) \(total == 1 ? "goal" : "goals") · \(doneToday) done")
+                    .font(Theme.text(14, relativeTo: .subheadline))
+                    .foregroundStyle(Theme.muted)
+            }
+            Spacer(minLength: 12)
+            Button { showPacks = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "megaphone.fill")
+                        .font(.system(size: 12, weight: .bold))
+                    Text(activePack?.title ?? "Default pack")
+                        .font(Theme.text(13, weight: .bold, relativeTo: .caption))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 12)
+                .frame(minHeight: 36)
+                .background(Theme.surface, in: Capsule())
+                .overlay(Capsule().stroke(Theme.line))
+                .frame(minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            .accessibilityLabel("Packs, using \(activePack?.title ?? "Default pack")")
         }
     }
 
@@ -154,9 +188,9 @@ struct GoalsView: View {
     private func focusScreen(_ focus: Focus) -> some View {
         if let goal = (goals + completedGoals).first(where: { $0.id == focus.goalID }) {
             if focus.finished {
-                DoneView(goal: goal, next: goals.first, doNext: doIt, close: { self.focus = nil })
+                DoneView(goal: goal, next: goals.first, pack: activePack, doNext: doIt, close: { self.focus = nil })
             } else {
-                DoItView(goal: goal, done: { finish(goal) }, close: { self.focus = nil })
+                DoItView(goal: goal, pack: activePack, done: { finish(goal) }, close: { self.focus = nil })
             }
         } else {
             // The goal was deleted from the widget or another device while this screen was up.

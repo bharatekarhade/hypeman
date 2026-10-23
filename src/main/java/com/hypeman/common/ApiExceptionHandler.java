@@ -60,6 +60,7 @@ class ApiExceptionHandler {
     private static HttpStatus statusFor(String code) {
         return switch (code) {
             case "INVALID_IDENTITY_TOKEN", "INVALID_REFRESH_TOKEN", "REFRESH_TOKEN_REUSED", "ACCOUNT_DELETED", "DEVICE_SIGNED_OUT" -> HttpStatus.UNAUTHORIZED;
+            case "PACK_NOT_PURCHASED" -> HttpStatus.PAYMENT_REQUIRED;
             case "PACK_NOT_OWNED" -> HttpStatus.FORBIDDEN;
             case "PACK_NOT_FOUND", "CLIP_NOT_FOUND" -> HttpStatus.NOT_FOUND;
             case "PACK_NOT_EDITABLE", "PACK_CLIPS_NOT_READY", "UPLOAD_NOT_FOUND" -> HttpStatus.CONFLICT;

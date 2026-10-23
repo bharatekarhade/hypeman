@@ -18,4 +18,6 @@ public interface PackRepository extends JpaRepository<Pack, UUID> {
     Set<String> findSlugsLike(String base);
 
     List<Pack> findByStatusOrderByFeaturedRankAsc(PackStatus status);
+
+    List<Pack> findAllByOrderByCreatedAtDesc();
 }
