@@ -56,4 +56,13 @@ public class User {
     public void markDeleted(Instant at) {
         deletedAt = at;
     }
+
+    public boolean isProAt(Instant now) {
+        return proUntil != null && proUntil.isAfter(now);
+    }
+
+    /** Worked out from the user's Pro subscription periods, so it can go back as well as forward. */
+    public void updateProUntil(Instant proUntil) {
+        this.proUntil = proUntil;
+    }
 }

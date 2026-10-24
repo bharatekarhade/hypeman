@@ -67,6 +67,12 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
         </dependency>
+        <!-- Verifies StoreKit transactions and App Store Server Notifications against Apple's root certificates. -->
+        <dependency>
+            <groupId>com.apple.itunes.storekit</groupId>
+            <artifactId>app-store-server-library</artifactId>
+            <version>5.2.0</version>
+        </dependency>
         <!-- Verifies Apple and Google ID tokens and our own access tokens (Nimbus JOSE + JWT). -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

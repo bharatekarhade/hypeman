@@ -10,6 +10,8 @@ public struct CatalogPack: Codable, Identifiable, Hashable, Sendable {
     public let isFree: Bool
     /// In role order: START, REMINDER, NAG, CONGRATS.
     public let clips: [CatalogClip]
+    /// The App Store product a paid pack is sold as. Pro unlocks it too.
+    public var productId: String? = nil
 }
 
 public struct CatalogClip: Codable, Hashable, Sendable {

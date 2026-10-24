@@ -18,10 +18,21 @@ public struct HypemanAPI: Sendable {
         try await send("GET", "v1/packs")
     }
 
-    /// Fresh signed links to a free pack's videos. They expire within the hour, so download straight away.
-    public func media(for packID: UUID) async throws -> [ClipMedia] {
-        let response: MediaResponse = try await send("POST", "v1/packs/\(packID.uuidString.lowercased())/media")
+    /// Fresh signed links to a pack's videos. They expire within the hour, so download straight away. A paid pack needs
+    /// the access token of someone who bought it or has Pro.
+    public func media(for packID: UUID, accessToken: String? = nil) async throws -> [ClipMedia] {
+        let response: MediaResponse = try await send("POST", "v1/packs/\(packID.uuidString.lowercased())/media", token: accessToken)
         return response.clips
+    }
+
+    /// What the user has paid for.
+    public func entitlements(accessToken: String) async throws -> Entitlements {
+        try await send("GET", "v1/purchases", token: accessToken)
+    }
+
+    /// Reports a StoreKit purchase or restore; the server checks Apple's signature. Returns what the user owns now.
+    public func recordPurchase(signedTransaction: String, accessToken: String) async throws -> Entitlements {
+        try await send("POST", "v1/purchases", body: ["signedTransaction": signedTransaction], token: accessToken)
     }
 
     /// Signs in with the identity token Apple returned, which carries the SHA-256 of `nonce`. A device has one account
@@ -129,6 +140,18 @@ public struct Me: Decodable, Equatable, Sendable {
     public let user: User
     public let identities: [Identity]
     public let proUntil: Date?
+}
+
+public struct Entitlements: Decodable, Equatable, Sendable {
+    /// When Pro runs out; nil if the user never had it.
+    public let proUntil: Date?
+    /// Packs bought on their own.
+    public let packIds: [UUID]
+
+    public init(proUntil: Date?, packIds: [UUID]) {
+        self.proUntil = proUntil
+        self.packIds = packIds
+    }
 }
 
 public struct APIError: Error, Decodable, Equatable, LocalizedError, Sendable {

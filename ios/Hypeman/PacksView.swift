@@ -1,15 +1,22 @@
 import HypemanKit
 import OSLog
+import StoreKit
 import SwiftData
 import SwiftUI
 
-/// Picks who yells: the bundled default pack or a free pack from the store, downloaded whole before it takes over.
+/// Picks who yells: the bundled default pack or one from the store, downloaded whole before it takes over. Paid packs
+/// are bought one at a time, or all come with Pro.
 struct PacksView: View {
     @Binding var active: InstalledPack?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @State private var store = Store.shared
+    @State private var account = Account.shared
     @State private var phase = Phase.loading
     @State private var installing: UUID?
+    @State private var buying: String?
+    @State private var showAccount = false
+    @State private var manageSubscription = false
     @State private var failure: String?
 
     private let log = Logger(subsystem: "com.hypeman.app", category: "PacksView")
@@ -19,6 +26,8 @@ struct PacksView: View {
             VStack(alignment: .leading, spacing: 12) {
                 header
                     .padding(.bottom, 8)
+                ProCard(products: store.proProducts, proUntil: store.isPro ? store.entitlements?.proUntil : nil, buying: buying,
+                        buy: buy, manage: { manageSubscription = true })
                 PackCard(
                     title: "Default pack",
                     description: "Hypeman’s own voice. Always on your phone.",
@@ -54,17 +63,26 @@ struct PacksView: View {
                             line: pack.clips.first { $0.role == .start }?.caption,
                             isExplicit: pack.isExplicit,
                             state: state(of: pack),
-                            use: { install(pack) }
+                            use: { install(pack) },
+                            buy: { pack.productId.flatMap { store.products[$0] }.map(buy) }
                         )
                     }
                 }
+                Button("Restore purchases", action: restore)
+                    .font(Theme.text(15, weight: .bold, relativeTo: .subheadline))
+                    .foregroundStyle(Theme.muted)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .disabled(buying != nil)
             }
             .padding(EdgeInsets(top: 24, leading: 20, bottom: 24, trailing: 20))
         }
         .background(Theme.background)
         .foregroundStyle(Theme.ink)
         .task { await load() }
-        .alert("Couldn’t switch packs", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
+        .task(id: account.isSignedIn) { await store.refreshEntitlements() }
+        .sheet(isPresented: $showAccount) { AccountSheet() }
+        .manageSubscriptionsSheet(isPresented: $manageSubscription)
+        .alert("Something went wrong", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(failure ?? "")
@@ -92,13 +110,17 @@ struct PacksView: View {
     private func state(of pack: CatalogPack) -> PackCard.State {
         if installing == pack.id { return .downloading }
         if active?.id == pack.id { return .using }
-        return pack.isFree ? .available : .unavailable
+        if store.owns(pack) { return .available }
+        guard let productID = pack.productId, let product = store.products[productID] else { return .unavailable }
+        return buying == productID ? .buying : .forSale(product.displayPrice)
     }
 
     private func load() async {
         phase = .loading
         do {
-            phase = .loaded(try await HypemanAPI.shared.catalog())
+            let packs = try await HypemanAPI.shared.catalog()
+            phase = .loaded(packs)
+            await store.loadProducts(for: packs)
         } catch {
             log.error("Could not load the catalog: \(error)")
             phase = .failed("Couldn’t reach the store. Check your connection.")
@@ -111,12 +133,50 @@ struct PacksView: View {
         Task {
             defer { installing = nil }
             do {
-                let media = try await HypemanAPI.shared.media(for: pack.id)
+                let media = try await store.media(for: pack)
                 active = try await PackLibrary.shared.install(pack, media: media)
                 Reminders.sync(in: context)
             } catch {
                 log.error("Could not install \(pack.slug): \(error)")
                 failure = (error as? APIError)?.message ?? "The download didn’t finish. Your current pack is still on."
+            }
+        }
+    }
+
+    /// Purchases belong to an account, so buying starts with signing in.
+    private func buy(_ product: Product) {
+        guard account.isSignedIn else {
+            showAccount = true
+            return
+        }
+        guard buying == nil else { return }
+        buying = product.id
+        Task {
+            defer { buying = nil }
+            do {
+                _ = try await store.buy(product)
+            } catch {
+                log.error("Could not buy \(product.id): \(error)")
+                failure = (error as? APIError)?.message ?? "The purchase didn’t go through. You weren’t charged twice; try again."
+            }
+        }
+    }
+
+    private func restore() {
+        guard account.isSignedIn else {
+            showAccount = true
+            return
+        }
+        buying = "restore"
+        Task {
+            defer { buying = nil }
+            do {
+                try await store.restore()
+            } catch StoreKitError.userCancelled {
+                // Cancelled the App Store sign-in.
+            } catch {
+                log.error("Could not restore purchases: \(error)")
+                failure = (error as? APIError)?.message ?? "Couldn’t restore your purchases. Please try again."
             }
         }
     }
@@ -140,8 +200,10 @@ struct PacksView: View {
 }
 
 private struct PackCard: View {
-    enum State {
-        case available, downloading, using, unavailable
+    enum State: Equatable {
+        case available, downloading, using, unavailable, buying
+        /// Not owned; the price in the user's storefront.
+        case forSale(String)
     }
 
     let title: String
@@ -151,6 +213,7 @@ private struct PackCard: View {
     let isExplicit: Bool
     let state: State
     let use: () -> Void
+    var buy: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -215,6 +278,19 @@ private struct PackCard: View {
                 .kerning(1.2)
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line))
+        case .forSale(let price):
+            Button(action: buy) {
+                Text("BUY · \(price)")
+                    .font(Theme.display(20, relativeTo: .headline))
+                    .kerning(1.2)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.ink, lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Buy \(title) for \(price)")
+        case .buying:
+            ProgressView()
+                .frame(maxWidth: .infinity, minHeight: 48)
         case .unavailable:
             Text("COMING SOON")
                 .font(Theme.display(20, relativeTo: .headline))
@@ -222,6 +298,75 @@ private struct PackCard: View {
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .foregroundStyle(Theme.muted)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line))
+        }
+    }
+}
+
+/// Every pack for one subscription. Shows the prices StoreKit gives, or how long Pro lasts for someone who has it.
+private struct ProCard: View {
+    let products: [Product]
+    /// Set when the user is Pro.
+    let proUntil: Date?
+    let buying: String?
+    let buy: (Product) -> Void
+    let manage: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HazardStripes()
+                .frame(height: 10)
+            VStack(alignment: .leading, spacing: 12) {
+                SectionLabel("HYPEMAN PRO")
+                Text("Every pack. New ones as they land.")
+                    .font(Theme.text(20, weight: .bold, relativeTo: .title3))
+                if let proUntil {
+                    Text("You’re Pro until \(proUntil.formatted(date: .abbreviated, time: .omitted)).")
+                        .font(Theme.text(15, relativeTo: .subheadline))
+                        .foregroundStyle(Theme.muted)
+                    Button("Manage subscription", action: manage)
+                        .font(Theme.text(15, weight: .bold, relativeTo: .subheadline))
+                        .foregroundStyle(Theme.ink)
+                        .frame(minHeight: 44)
+                } else if products.isEmpty {
+                    Text("Not available right now.")
+                        .font(Theme.text(15, relativeTo: .subheadline))
+                        .foregroundStyle(Theme.muted)
+                } else {
+                    ForEach(products, id: \.id) { product in
+                        Button { buy(product) } label: {
+                            Group {
+                                if buying == product.id {
+                                    ProgressView()
+                                } else {
+                                    Text("\(product.displayPrice) / \(period(of: product))")
+                                        .font(Theme.display(20, relativeTo: .headline))
+                                        .kerning(1.2)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
+                            .foregroundStyle(Theme.onAccent)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(buying != nil)
+                    }
+                    Text("Renews automatically until you cancel in Settings.")
+                        .font(Theme.text(13, relativeTo: .footnote))
+                        .foregroundStyle(Theme.muted)
+                }
+            }
+            .padding(EdgeInsets(top: 16, leading: 18, bottom: 16, trailing: 18))
+        }
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func period(of product: Product) -> String {
+        switch product.subscription?.subscriptionPeriod.unit {
+        case .year: "YEAR"
+        case .month: "MONTH"
+        case .week: "WEEK"
+        default: "PERIOD"
         }
     }
 }

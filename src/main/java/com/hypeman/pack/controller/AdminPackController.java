@@ -49,7 +49,7 @@ class AdminPackController {
 
     @PostMapping("/packs")
     ResponseEntity<AdminPackView> create(@Valid @RequestBody CreatePackRequest body) {
-        Pack pack = packs.createDefaultPack(body.title(), body.description(), body.isExplicit());
+        Pack pack = packs.createDefaultPack(body.title(), body.description(), body.isExplicit(), body.productId());
         return ResponseEntity.created(URI.create("/v1/admin/packs/" + pack.getId())).body(AdminPackView.of(new CatalogPack(pack, List.of())));
     }
 
@@ -71,7 +71,9 @@ class AdminPackController {
         return AdminPackView.of(packs.pack(packId));
     }
 
-    record CreatePackRequest(@NotNull String title, @NotNull @Size(max = 500) String description, boolean isExplicit) {
+    /** @param productId the App Store product that sells it, set up in App Store Connect; leave it out for a free pack */
+    record CreatePackRequest(@NotNull String title, @NotNull @Size(max = 500) String description, boolean isExplicit,
+                             @Size(max = 100) String productId) {
     }
 
     /** The service checks the caption and content type, so its error messages match the creator flow's. */
@@ -79,12 +81,12 @@ class AdminPackController {
     }
 
     record AdminPackView(UUID id, String slug, String title, String description, boolean isExplicit, boolean isFree,
-                         PackStatus status, List<AdminClipView> clips) {
+                         String productId, PackStatus status, List<AdminClipView> clips) {
 
         static AdminPackView of(CatalogPack entry) {
             Pack pack = entry.pack();
             return new AdminPackView(pack.getId(), pack.getSlug(), pack.getTitle(), pack.getDescription(), pack.isExplicit(),
-                    pack.isFree(), pack.getStatus(), entry.clips().stream().map(AdminClipView::of).toList());
+                    pack.isFree(), pack.getProductId(), pack.getStatus(), entry.clips().stream().map(AdminClipView::of).toList());
         }
     }
 

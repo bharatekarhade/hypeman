@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.UuidGenerator;
 
-/** A set of four clips, one per role. A default pack has no creator, is free and is shown to everyone. */
+/** A set of four clips, one per role. A default pack has no creator and is shown to everyone; it's free unless sold. */
 @Entity
 @Table(name = "packs")
 public class Pack {
@@ -62,6 +62,13 @@ public class Pack {
         return pack;
     }
 
+    /** Sells the pack as this App Store product, on its own or with Pro. */
+    public Pack sellAs(String productId) {
+        this.productId = productId;
+        this.isFree = false;
+        return this;
+    }
+
     public Pack publish(){
         this.status = PackStatus.PUBLISHED;
         return this;
@@ -89,6 +96,11 @@ public class Pack {
 
     public String getPhotoKey() {
         return photoKey;
+    }
+
+    /** The App Store product that sells this pack; null for a free pack. */
+    public String getProductId() {
+        return productId;
     }
 
     public boolean isFree() {

@@ -11,6 +11,7 @@ struct HypemanApp: App {
         Theme.registerFonts()
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
         Reminders.registerActions()
+        Store.shared.startListening()
         // Catch up on anything that changed while the app wasn't running, such as a reminder that already went off.
         Reminders.sync(in: GoalStore.container.mainContext)
     }

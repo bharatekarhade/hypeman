@@ -1,0 +1,98 @@
+{
+  "identifier" : "6C1C1E0B-2F3A-4E55-9C4B-3B1D6E7A9F10",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : false,
+      "internalID" : "6739000001",
+      "localizations" : [
+        {
+          "description" : "An example paid pack. Create a pack with this product id to try buying it.",
+          "displayName" : "Coach pack",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.hypeman.pack.coach",
+      "referenceName" : "Coach pack",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6739000000",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21500001",
+      "localizations" : [
+
+      ],
+      "name" : "Hypeman Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6739000002",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Every pack, new ones as they land.",
+              "displayName" : "Hypeman Pro (monthly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.hypeman.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro monthly",
+          "subscriptionGroupID" : "21500001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6739000003",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Every pack, new ones as they land.",
+              "displayName" : "Hypeman Pro (yearly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.hypeman.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro yearly",
+          "subscriptionGroupID" : "21500001",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

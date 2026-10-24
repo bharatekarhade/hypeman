@@ -14,6 +14,11 @@ import com.hypeman.pack.model.Pack;
 import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.repository.PackRepository;
+import com.hypeman.purchase.model.PackPurchase;
+import com.hypeman.purchase.model.ProTransaction;
+import com.hypeman.purchase.model.VerifiedTransaction;
+import com.hypeman.purchase.repository.PackPurchaseRepository;
+import com.hypeman.purchase.repository.ProTransactionRepository;
 import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.model.User;
 import com.hypeman.user.repository.UserIdentityRepository;
@@ -55,6 +60,12 @@ class MigrationTests {
 
     @Autowired
     ClipRepository clips;
+
+    @Autowired
+    PackPurchaseRepository purchases;
+
+    @Autowired
+    ProTransactionRepository proTransactions;
 
     @Autowired
     TransactionTemplate transaction;
@@ -132,6 +143,58 @@ class MigrationTests {
         packs.deleteById(pack);
 
         assertThat(clips.findByPackIdOrderByRole(pack)).isEmpty();
+    }
+
+    @Test
+    void aUserOwnsAPackOnce() {
+        UUID user = users.save(new User()).getId();
+        UUID pack = savePack();
+        purchases.saveAndFlush(purchase(user, pack));
+
+        assertThatThrownBy(() -> purchases.saveAndFlush(purchase(user, pack))).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingAUserRemovesTheirPurchases() {
+        UUID user = users.save(new User()).getId();
+        UUID purchase = purchases.saveAndFlush(purchase(user, savePack())).getId();
+
+        users.deleteById(user);
+
+        assertThat(purchases.findById(purchase)).isEmpty();
+    }
+
+    @Test
+    void aSubscriptionPeriodIsRecordedOnce() {
+        UUID user = users.save(new User()).getId();
+        String transactionId = "txn-" + UUID.randomUUID();
+        proTransactions.saveAndFlush(period(user, transactionId));
+
+        assertThatThrownBy(() -> proTransactions.saveAndFlush(period(user, transactionId))).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingAUserRemovesTheirSubscriptionPeriods() {
+        UUID user = users.save(new User()).getId();
+        UUID period = proTransactions.saveAndFlush(period(user, "txn-" + UUID.randomUUID())).getId();
+
+        users.deleteById(user);
+
+        assertThat(proTransactions.findById(period)).isEmpty();
+    }
+
+    private static PackPurchase purchase(UUID user, UUID pack) {
+        PackPurchase purchase = new PackPurchase(UUID.randomUUID(), user, pack);
+        String id = "txn-" + UUID.randomUUID();
+        purchase.apply(new VerifiedTransaction(id, id, "com.hypeman.pack.coach", user, Instant.now(), null, null, "XCODE"));
+        return purchase;
+    }
+
+    private static ProTransaction period(UUID user, String transactionId) {
+        ProTransaction period = new ProTransaction(UUID.randomUUID(), user, transactionId);
+        period.apply(new VerifiedTransaction(transactionId, "txn-original", "com.hypeman.pro.monthly", user, Instant.now(),
+                Instant.now().plus(30, ChronoUnit.DAYS), null, "XCODE"));
+        return period;
     }
 
     private UUID savePack() {

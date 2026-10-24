@@ -15,6 +15,7 @@ import com.hypeman.pack.model.Pack;
 import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.repository.PackRepository;
+import com.hypeman.purchase.service.PurchaseService;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Arrays;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ public class PackService {
     private static final String QUICKTIME_CONTENT_TYPE = "video/quicktime";
     private static final int MAX_TITLE_LENGTH = 60;
     private static final int MAX_CAPTION_LENGTH = 120;
+    private static final Pattern PRODUCT_ID = Pattern.compile("[A-Za-z0-9-]+(\\.[A-Za-z0-9_-]+)+");
     /** Processing a 10-second clip takes seconds; one PROCESSING this long was lost, e.g. to a restart. */
     private static final Duration STUCK_PROCESSING = Duration.ofMinutes(10);
 
@@ -45,23 +48,38 @@ public class PackService {
     private final MediaStorage mediaStorage;
     private final Clock clock;
     private final ApplicationEventPublisher events;
+    private final PurchaseService purchases;
 
     public PackService(PackRepository packRepository, ClipRepository clipRepository, MediaStorage mediaStorage, Clock clock,
-                       ApplicationEventPublisher events) {
+                       ApplicationEventPublisher events, PurchaseService purchases) {
         this.packRepository = packRepository;
         this.clipRepository = clipRepository;
         this.mediaStorage = mediaStorage;
         this.clock = clock;
         this.events = events;
+        this.purchases = purchases;
     }
 
     @Transactional
     public Pack createDefaultPack(String title, String description, boolean isExplicit) {
+        return createDefaultPack(title, description, isExplicit, null);
+    }
+
+    /** @param productId the App Store product that sells it; null for a free pack */
+    @Transactional
+    public Pack createDefaultPack(String title, String description, boolean isExplicit, String productId) {
         if (title == null || title.isBlank() || title.trim().length() > MAX_TITLE_LENGTH) {
             throw new ApplicationException("VALIDATION_FAILED", "The title must not be blank or over 60 characters.");
         }
+        if (productId != null && !PRODUCT_ID.matcher(productId).matches()) {
+            throw new ApplicationException("VALIDATION_FAILED", "The product id must be a reverse-DNS id like com.hypeman.pack.coach.");
+        }
+        if (productId != null && packRepository.findByProductId(productId).isPresent()) {
+            throw new ApplicationException("VALIDATION_FAILED", "Another pack is already sold as " + productId + ".");
+        }
         String trimmed = title.trim();
-        return packRepository.save(Pack.defaultPack(uniqueSlug(trimmed), trimmed, description, isExplicit));
+        Pack pack = Pack.defaultPack(uniqueSlug(trimmed), trimmed, description, isExplicit);
+        return packRepository.save(productId == null ? pack : pack.sellAs(productId));
     }
 
     /**
@@ -155,16 +173,18 @@ public class PackService {
     }
 
     /**
-     * Signed links to a published pack's videos. Only free packs for now; paid ones need purchases first. A pack that
-     * isn't published looks like one that doesn't exist.
+     * Signed links to a published pack's videos: anyone's for a free pack; for a paid one, only if the user bought it or
+     * has Pro. A pack that isn't published looks like one that doesn't exist.
+     *
+     * @param userId null when nobody is signed in
      */
     @Transactional(readOnly = true)
-    public List<ClipMedia> media(UUID packId) {
+    public List<ClipMedia> media(UUID packId, UUID userId) {
         Pack pack = packRepository.findById(packId)
                 .filter(found -> found.getStatus() == PackStatus.PUBLISHED)
                 .orElseThrow(() -> new ApplicationException("PACK_NOT_FOUND", "That pack doesn't exist."));
-        if (!pack.isFree()) {
-            throw new ApplicationException("PACK_NOT_PURCHASED", "Buy this pack to download it.");
+        if (!pack.isFree() && !purchases.owns(userId, packId)) {
+            throw new ApplicationException("PACK_NOT_PURCHASED", "Buy this pack or get Pro to download it.");
         }
         return clipRepository.findByPackIdOrderByRole(packId).stream()
                 .sorted(Comparator.comparing(Clip::getRole))

@@ -112,6 +112,8 @@ struct AccountSheet: View {
             busy = true
             defer { busy = false }
             try await account.signInWithApple(identityToken: credential.token, nonce: nonce.raw, appleUserID: credential.user)
+            // Purchases this Apple ID already made, e.g. before reinstalling.
+            try? await Store.shared.reportCurrentEntitlements()
         } catch {
             show(error)
         }
