@@ -130,7 +130,7 @@ class PurchaseTests {
     }
 
     @Test
-    void proUnlocksEveryPaidPack() throws Exception {
+    void proIsRecordedButDoesNotIncludePacks() throws Exception {
         UUID user = newUser();
         Instant expires = Instant.now().plus(30, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
 
@@ -138,16 +138,79 @@ class PurchaseTests {
 
         assertThat(result).hasStatusOk();
         assertThat(Instant.parse(read(result, "$.proUntil"))).isEqualTo(expires);
-        assertThat(media(paidPack(), user)).hasStatusOk();
-        assertThat(media(paidPack(), user)).hasStatusOk();
+        assertError(media(paidPack(), user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test
-    void expiredProUnlocksNothing() throws Exception {
-        UUID user = newUser();
-        buy(user, transaction(PRO, user, Instant.now().minus(1, ChronoUnit.DAYS), null));
+    void aPackBoughtSignedOutDownloadsWithItsTransaction() throws Exception {
+        Pack pack = paidPack();
 
-        assertError(media(paidPack(), user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertThat(guestMedia(pack, transaction(pack.getProductId(), null, null, null))).hasStatusOk();
+    }
+
+    @Test
+    void anotherPacksTransactionDoesNotUnlockAPack() throws Exception {
+        Pack pack = paidPack();
+
+        assertError(guestMedia(pack, transaction(paidPack().getProductId(), null, null, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(guestMedia(pack, transaction(PRO, null, Instant.now().plus(30, ChronoUnit.DAYS), null)),
+                HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+    }
+
+    @Test
+    void aRefundedTransactionDoesNotUnlockAPack() throws Exception {
+        Pack pack = paidPack();
+
+        assertError(guestMedia(pack, transaction(pack.getProductId(), null, null, Instant.now())), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+    }
+
+    @Test
+    void anUnsignedTransactionClaimingToBeFromAppleDoesNotUnlockAPack() throws Exception {
+        Pack pack = paidPack();
+        String forged = jws(transactionClaims(pack.getProductId(), null, null, null, "Sandbox"));
+
+        assertError(guestMedia(pack, forged), HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_TRANSACTION");
+    }
+
+    @Test
+    void aPurchaseMadeSignedOutJoinsTheFirstAccountToReportIt() throws Exception {
+        Pack pack = paidPack();
+        UUID first = newUser();
+        String boughtSignedOut = transaction(pack.getProductId(), null, null, null);
+
+        assertThat(buy(first, boughtSignedOut)).hasStatusOk();
+
+        assertThat(media(pack, first)).hasStatusOk();
+        assertError(buy(newUser(), boughtSignedOut), HttpStatus.FORBIDDEN, "PURCHASE_ACCOUNT_MISMATCH");
+    }
+
+    @Test
+    void aRefundOfAClaimedPurchaseLocksThePackEverywhere() throws Exception {
+        Pack pack = paidPack();
+        UUID user = newUser();
+        String originalId = "guest-" + UUID.randomUUID();
+        String beforeRefund = transaction(pack.getProductId(), null, null, null, originalId);
+        buy(user, beforeRefund);
+
+        notify(transaction(pack.getProductId(), null, null, Instant.now(), originalId));
+
+        assertError(media(pack, user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(guestMedia(pack, beforeRefund), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+    }
+
+    @Test
+    void renewalsOfProBoughtSignedOutReachTheAccountThatClaimedIt() throws Exception {
+        UUID user = newUser();
+        Instant firstPeriod = Instant.now().plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
+        Instant renewed = firstPeriod.plus(30, ChronoUnit.DAYS);
+        String original = "guest-sub-" + UUID.randomUUID();
+        buy(user, transaction(PRO, null, firstPeriod, null, original, original, Instant.now()));
+
+        notify(transaction(PRO, null, renewed, null, original, "period-" + UUID.randomUUID(), firstPeriod));
+
+        assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(renewed);
+        assertError(buy(newUser(), transaction(PRO, null, renewed, null, original, "period-" + UUID.randomUUID(), renewed)),
+                HttpStatus.FORBIDDEN, "PURCHASE_ACCOUNT_MISMATCH");
     }
 
     @Test
@@ -249,12 +312,13 @@ class PurchaseTests {
     void aRefundedSubscriptionEndsPro() throws Exception {
         UUID user = newUser();
         Instant expires = Instant.now().plus(30, ChronoUnit.DAYS);
+        Instant refunded = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         String period = "period-" + UUID.randomUUID();
         buy(user, transaction(PRO, user, expires, null, period, period, Instant.now()));
 
-        notify(transaction(PRO, user, expires, Instant.now(), period, period, Instant.now()));
+        notify(transaction(PRO, user, expires, refunded, period, period, Instant.now()));
 
-        assertError(media(paidPack(), user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(refunded);
     }
 
     @Test
@@ -303,7 +367,6 @@ class PurchaseTests {
         notify(beforeRefund);
 
         assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(refunded);
-        assertError(media(paidPack(), user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test
@@ -320,7 +383,6 @@ class PurchaseTests {
         notify(transaction(PRO, user, firstEnded, Instant.now(), original, first, firstStarted));
 
         assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(renewedUntil);
-        assertThat(media(paidPack(), user)).hasStatusOk();
     }
 
     @Test
@@ -383,6 +445,11 @@ class PurchaseTests {
         return mvc.post().uri("/v1/packs/{id}/media", pack.getId()).header("Authorization", bearer(user)).exchange();
     }
 
+    private MvcTestResult guestMedia(Pack pack, String signedTransaction) throws Exception {
+        return mvc.post().uri("/v1/packs/{id}/media", pack.getId()).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("signedTransaction", signedTransaction))).exchange();
+    }
+
     private String transaction(String productId, UUID account, Instant expires, Instant revoked) throws Exception {
         return transaction(productId, account, expires, revoked, "txn-" + UUID.randomUUID());
     }
@@ -400,7 +467,7 @@ class PurchaseTests {
         return jws(claims);
     }
 
-    /** The fields of a StoreKit JWSTransaction that matter here. */
+    /** The fields of a StoreKit JWSTransaction that matter here; no account when bought signed out. */
     private static Map<String, Object> transactionClaims(String productId, UUID account, Instant expires, Instant revoked, String environment) {
         Map<String, Object> claims = new LinkedHashMap<>();
         claims.put("transactionId", "txn-" + UUID.randomUUID());
@@ -410,7 +477,9 @@ class PurchaseTests {
         claims.put("purchaseDate", Instant.now().toEpochMilli());
         claims.put("signedDate", Instant.now().toEpochMilli());
         claims.put("type", expires != null ? "Auto-Renewable Subscription" : "Non-Consumable");
-        claims.put("appAccountToken", account.toString());
+        if (account != null) {
+            claims.put("appAccountToken", account.toString());
+        }
         claims.put("environment", environment);
         if (expires != null) {
             claims.put("expiresDate", expires.toEpochMilli());

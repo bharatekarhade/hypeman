@@ -173,18 +173,19 @@ public class PackService {
     }
 
     /**
-     * Signed links to a published pack's videos: anyone's for a free pack; for a paid one, only if the user bought it or
-     * has Pro. A pack that isn't published looks like one that doesn't exist.
+     * Signed links to a published pack's videos: anyone's for a free pack; for a paid one, only for its buyer. A pack that
+     * isn't published looks like one that doesn't exist.
      *
      * @param userId null when nobody is signed in
+     * @param signedTransaction the pack's StoreKit purchase, for a buyer who isn't signed in; may be null
      */
     @Transactional(readOnly = true)
-    public List<ClipMedia> media(UUID packId, UUID userId) {
+    public List<ClipMedia> media(UUID packId, UUID userId, String signedTransaction) {
         Pack pack = packRepository.findById(packId)
                 .filter(found -> found.getStatus() == PackStatus.PUBLISHED)
                 .orElseThrow(() -> new ApplicationException("PACK_NOT_FOUND", "That pack doesn't exist."));
-        if (!pack.isFree() && !purchases.owns(userId, packId)) {
-            throw new ApplicationException("PACK_NOT_PURCHASED", "Buy this pack or get Pro to download it.");
+        if (!pack.isFree() && !purchases.owns(userId, pack, signedTransaction)) {
+            throw new ApplicationException("PACK_NOT_PURCHASED", "Buy this pack to download it.");
         }
         return clipRepository.findByPackIdOrderByRole(packId).stream()
                 .sorted(Comparator.comparing(Clip::getRole))

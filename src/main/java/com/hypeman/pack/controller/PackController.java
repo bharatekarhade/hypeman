@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,10 +32,19 @@ class PackController {
         return packs.catalog().stream().map(PackView::of).toList();
     }
 
-    /** POST, not GET: each call signs fresh links. A paid pack needs the buyer's sign-in; a free one needs none. */
+    /**
+     * POST, not GET: each call signs fresh links. A free pack needs nothing; a paid one needs the buyer's sign-in or, when
+     * they bought it signed out, its signed StoreKit transaction.
+     */
     @PostMapping("/{packId}/media")
-    MediaResponse media(@PathVariable UUID packId, @AuthenticationPrincipal Jwt token) {
-        return new MediaResponse(packs.media(packId, token == null ? null : TokenService.userId(token)));
+    MediaResponse media(@PathVariable UUID packId, @AuthenticationPrincipal Jwt token,
+                        @RequestBody(required = false) MediaRequest body) {
+        return new MediaResponse(packs.media(packId, token == null ? null : TokenService.userId(token),
+                body == null ? null : body.signedTransaction()));
+    }
+
+    /** @param signedTransaction StoreKit's jwsRepresentation of the pack's purchase */
+    record MediaRequest(String signedTransaction) {
     }
 
     /** @param productId the App Store product a paid pack is sold as; null when it's free */

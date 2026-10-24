@@ -7,7 +7,8 @@ import SwiftData
 
 /// Locks the apps the user picked while a goal is overdue: its reminder went off and it still isn't started (HM-04).
 /// The app may not be running at reminder time, so it schedules a DeviceActivity interval at each reminder and the
-/// ActivityMonitor extension raises the shield when one starts. Only the app lowers it, once nothing is overdue.
+/// ActivityMonitor extension raises the shield when one starts. Only the app lowers it, once nothing is overdue. It's a
+/// Pro feature: when Pro lapses the lock stops, and the picked apps are kept for if Pro comes back.
 public enum AppLock {
     /// A goal that can lock the apps, as the extensions see it. They get this list rather than opening the goal store,
     /// which is too heavy for their memory limits.
@@ -41,7 +42,7 @@ public enum AppLock {
     }
 
     public static var isOn: Bool {
-        isAuthorized && !selection.isEmpty
+        isAuthorized && !selection.isEmpty && ProAccess.isActive()
     }
 
     /// Screen Time permission for this device's own user. Throws when the user declines or Screen Time is restricted.
@@ -71,8 +72,13 @@ public enum AppLock {
         }
     }
 
-    /// For the ActivityMonitor extension: a reminder's interval started, so lock if that goal is still waiting.
+    /// For the ActivityMonitor extension: a reminder's interval started, so lock if that goal is still waiting. Pro may
+    /// have run out since the app scheduled it.
     public static func intervalStarted(_ activity: DeviceActivityName) {
+        guard ProAccess.isActive() else {
+            store.clearAllSettings()
+            return
+        }
         let entries = load([Entry].self, entriesKey) ?? []
         if entries.contains(where: { activityName($0.id) == activity }) {
             lock()

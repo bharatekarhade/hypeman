@@ -18,6 +18,7 @@ struct GoalsView: View {
     @State private var showPacks = false
     @State private var showLock = false
     @State private var showAccount = false
+    @State private var store = Store.shared
     @State private var reminderGoal: Goal?
     /// A tapped notification's goal, waiting for an open sheet to finish closing.
     @State private var pendingStart: UUID?
@@ -102,6 +103,11 @@ struct GoalsView: View {
         .onChange(of: NotificationRouter.shared.goalToStart, initial: true) { _, goalID in
             startFromNotification(goalID)
         }
+        .onChange(of: store.isPro) {
+            // Pro starting or ending turns hard mode and the Live Activity on or off (PY-06).
+            AppLock.sync(in: context)
+            LiveActivities.sync(in: context)
+        }
         .fullScreenCover(item: $focus) { focus in
             focusScreen(focus)
         }
@@ -109,7 +115,12 @@ struct GoalsView: View {
             PacksView(active: $activePack)
         }
         .sheet(isPresented: $showLock, onDismiss: startPending) {
-            LockSheet()
+            // Hard mode is Pro (PY-03); buying it here turns the paywall into the app picker.
+            if store.isPro {
+                LockSheet()
+            } else {
+                PaywallSheet(headline: "Lock your apps until you DO IT.")
+            }
         }
         .sheet(isPresented: $showAccount, onDismiss: startPending) {
             AccountSheet()

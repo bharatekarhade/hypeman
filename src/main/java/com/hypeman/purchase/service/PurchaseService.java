@@ -24,8 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Pro and single packs, from Apple's signed transactions. The app attaches the buyer's user id to every purchase as its
- * appAccountToken, which is how both its own reports and Apple's notifications find the user. The same transaction can
+ * Pro and single packs, from Apple's signed transactions. Pro doesn't include packs: every pack is bought on its own, so
+ * each sale is its creator's. When someone is signed in, the app attaches their user id to the purchase as its
+ * appAccountToken, which is how both its own reports and Apple's notifications find them. A purchase made signed out
+ * carries none; it still unlocks its pack on that device, and joins the account that first reports it after signing in. The same transaction can
  * arrive any number of times, from the app and from Apple, in any order, and a copy signed before a refund stays valid,
  * so applying one never undoes a refund or a later purchase.
  */
@@ -53,11 +55,11 @@ public class PurchaseService {
         this.clock = clock;
     }
 
-    /** A purchase or restore the app reports. It must be the signed-in user's: the app attached their id when buying. */
+    /** A purchase or restore the app reports: one the user made signed in, or one made signed out that nobody has claimed. */
     @Transactional
     public Entitlements record(UUID userId, String signedTransaction) {
         VerifiedTransaction transaction = verifier.verifyTransaction(signedTransaction);
-        if (!userId.equals(transaction.appAccountToken())) {
+        if (transaction.appAccountToken() != null && !userId.equals(transaction.appAccountToken())) {
             throw new ApplicationException("PURCHASE_ACCOUNT_MISMATCH",
                     "This purchase was made while signed in to a different Hypeman account. Sign in with that account to use it.");
         }
@@ -75,10 +77,10 @@ public class PurchaseService {
             return;
         }
         VerifiedTransaction transaction = notified.get();
-        UUID userId = transaction.appAccountToken();
+        UUID userId = transaction.appAccountToken() != null ? transaction.appAccountToken() : ownerOf(transaction.originalTransactionId());
         if (userId == null || !users.existsById(userId)) {
-            // Bought outside the app (an offer code, say) or by an account that's been purged. The app reports it on its
-            // next restore if the buyer is signed in then.
+            // Bought signed out and not claimed yet, outside the app (an offer code, say), or by an account that's been
+            // purged. The app reports it once the buyer signs in.
             log.info("Ignoring a notification for transaction {} with no known user", transaction.originalTransactionId());
             return;
         }
@@ -99,14 +101,31 @@ public class PurchaseService {
                 purchases.findByUserIdAndRevokedAtIsNull(userId).stream().map(PackPurchase::getPackId).toList());
     }
 
-    /** Pro covers every pack; otherwise the user must have bought this one and kept it. */
+    /**
+     * Whether a paid pack may be downloaded: the signed-in user bought it, or the app proves a purchase of it with Apple's
+     * signed transaction, which is how a pack bought signed out downloads. A refund recorded for that purchase still counts.
+     *
+     * @param userId null when nobody is signed in
+     * @param signedTransaction StoreKit's jwsRepresentation of the pack's purchase; null if the app sent none
+     */
     @Transactional(readOnly = true)
-    public boolean owns(UUID userId, UUID packId) {
-        if (userId == null) {
+    public boolean owns(UUID userId, Pack pack, String signedTransaction) {
+        if (userId != null && purchases.existsByUserIdAndPackIdAndRevokedAtIsNull(userId, pack.getId())) {
+            return true;
+        }
+        if (signedTransaction == null) {
             return false;
         }
-        boolean pro = users.findById(userId).map(user -> user.isProAt(clock.instant())).orElse(false);
-        return pro || purchases.existsByUserIdAndPackIdAndRevokedAtIsNull(userId, packId);
+        VerifiedTransaction transaction = verifier.verifyTransaction(signedTransaction);
+        return transaction.productId().equals(pack.getProductId()) && transaction.revokedAt() == null
+                && purchases.findByOriginalTransactionId(transaction.originalTransactionId()).map(PackPurchase::isActive).orElse(true);
+    }
+
+    /** Who claimed a purchase made signed out, if anyone has. */
+    private UUID ownerOf(String originalTransactionId) {
+        return purchases.findByOriginalTransactionId(originalTransactionId).map(PackPurchase::getUserId)
+                .or(() -> proTransactions.findFirstByOriginalTransactionId(originalTransactionId).map(ProTransaction::getUserId))
+                .orElse(null);
     }
 
     /** False when the product is neither Pro nor a pack's. */
@@ -142,7 +161,8 @@ public class PurchaseService {
         User user = users.findLockedById(userId).orElseThrow();
         ProTransaction period = proTransactions.findByTransactionId(transaction.transactionId())
                 .orElseGet(() -> new ProTransaction(Ids.uuidV7(clock), userId, transaction.transactionId()));
-        if (!period.getUserId().equals(userId)) {
+        UUID owner = Optional.ofNullable(ownerOf(transaction.originalTransactionId())).orElse(period.getUserId());
+        if (!period.getUserId().equals(userId) || !owner.equals(userId)) {
             throw new ApplicationException("PURCHASE_ACCOUNT_MISMATCH",
                     "This subscription already belongs to a different Hypeman account. Sign in with that account to use it.");
         }

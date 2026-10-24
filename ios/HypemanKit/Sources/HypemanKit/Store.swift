@@ -3,10 +3,12 @@ import Observation
 import OSLog
 import StoreKit
 
-/// Hypeman Pro and single packs through StoreKit 2. Every purchase carries the signed-in user's id as its
-/// appAccountToken, which is how the server ties it, and Apple's later notifications about it, to the account. The server
-/// decides what someone owns; a transaction is finished only once the server has it, so one that fails to report comes
-/// back through `Transaction.updates` on the next launch.
+/// Hypeman Pro and single packs through StoreKit 2. Pro is for app features (hard mode, the Live Activity); packs are
+/// always bought one at a time, so every sale is its creator's. Neither needs an account: what this Apple ID owns comes
+/// from StoreKit on the phone, and a pack bought signed out downloads with its signed transaction. When someone is signed
+/// in, purchases carry their user id as the appAccountToken and are reported to the server, so they follow the account;
+/// such a transaction is finished only once the server has it, so one that fails to report comes back through
+/// `Transaction.updates` on the next launch.
 @MainActor
 @Observable
 public final class Store {
@@ -19,8 +21,10 @@ public final class Store {
     private static let permanentFailures: Set<String> = ["PURCHASE_ACCOUNT_MISMATCH", "UNKNOWN_PRODUCT", "INVALID_TRANSACTION"]
 
     public private(set) var products: [String: Product] = [:]
-    /// Nil until loaded, and whenever nobody is signed in.
+    /// What the server says the signed-in user owns. Nil until loaded, and whenever nobody is signed in.
     public private(set) var entitlements: Entitlements?
+    /// What this Apple ID owns according to StoreKit, signed in or not.
+    public private(set) var local = LocalEntitlements()
 
     private let account: Account
     private let api: HypemanAPI
@@ -36,20 +40,26 @@ public final class Store {
         Self.proProductIDs.compactMap { products[$0] }
     }
 
+    /// When the current Pro period ends, from StoreKit or the server, whichever is later.
+    public var proUntil: Date? {
+        Self.proUntil(entitlements, local)
+    }
+
     public var isPro: Bool {
-        Self.isPro(entitlements, now: .now)
+        proUntil.map { $0 > .now } ?? false
     }
 
     public func owns(_ pack: CatalogPack) -> Bool {
-        Self.owns(pack, entitlements, now: .now)
+        Self.owns(pack, entitlements, local)
     }
 
-    nonisolated static func isPro(_ entitlements: Entitlements?, now: Date) -> Bool {
-        entitlements?.proUntil.map { $0 > now } ?? false
+    nonisolated static func proUntil(_ entitlements: Entitlements?, _ local: LocalEntitlements) -> Date? {
+        [entitlements?.proUntil, local.proUntil].compactMap { $0 }.max()
     }
 
-    nonisolated static func owns(_ pack: CatalogPack, _ entitlements: Entitlements?, now: Date) -> Bool {
-        pack.isFree || isPro(entitlements, now: now) || entitlements?.packIds.contains(pack.id) == true
+    nonisolated static func owns(_ pack: CatalogPack, _ entitlements: Entitlements?, _ local: LocalEntitlements) -> Bool {
+        pack.isFree || entitlements?.packIds.contains(pack.id) == true
+            || pack.productId.map(local.packProductIDs.contains) == true
     }
 
     /// Prices for Pro and for the catalog's paid packs, in the user's storefront.
@@ -64,9 +74,16 @@ public final class Store {
         }
     }
 
+    /// Loads Pro prices only, for the paywall.
+    public func loadProProducts() async {
+        await loadProducts(for: [])
+    }
+
     public func refreshEntitlements() async {
+        await refreshLocal()
         guard account.isSignedIn else {
             entitlements = nil
+            publishPro()
             return
         }
         do {
@@ -74,23 +91,37 @@ public final class Store {
         } catch {
             log.error("Could not load entitlements: \(error)")
         }
+        publishPro()
     }
 
-    /// Signed links to a pack's videos, with the user's sign-in when the pack is paid.
+    /// Signed links to a pack's videos. A paid pack proves its purchase with StoreKit's transaction when this phone has
+    /// one, and otherwise with the user's sign-in.
     public func media(for pack: CatalogPack) async throws -> [ClipMedia] {
         if pack.isFree {
             return try await api.media(for: pack.id)
         }
+        if let productID = pack.productId, let transaction = await Self.current(productID) {
+            return try await api.media(for: pack.id, signedTransaction: transaction.jwsRepresentation)
+        }
         return try await account.authorized { [api] token in try await api.media(for: pack.id, accessToken: token) }
     }
 
-    /// Needs a signed-in user. False when the user cancelled or the purchase waits for approval (Ask to Buy); an
-    /// approved one arrives later through `Transaction.updates`.
+    /// Works signed out. False when the user cancelled or the purchase waits for approval (Ask to Buy); an approved one
+    /// arrives later through `Transaction.updates`.
     public func buy(_ product: Product) async throws -> Bool {
-        guard let userID = account.session?.user.id else { throw APIError.signedOut }
-        switch try await product.purchase(options: [.appAccountToken(userID)]) {
+        var options: Set<Product.PurchaseOption> = []
+        if let userID = account.session?.user.id {
+            options.insert(.appAccountToken(userID))
+        }
+        switch try await product.purchase(options: options) {
         case .success(let verification):
-            try await report(verification)
+            guard case .verified = verification else { throw Self.unverified }
+            do {
+                try await report(verification)
+            } catch {
+                // Bought all the same: StoreKit unlocks it on this phone, and the server hears on a later launch.
+                log.error("Bought \(product.id) but couldn't report it yet: \(error)")
+            }
             return true
         case .pending, .userCancelled:
             return false
@@ -99,13 +130,19 @@ public final class Store {
         }
     }
 
-    /// Asks the App Store for the user's purchases (it may ask for their Apple ID password) and reports each one.
+    /// Asks the App Store for the user's purchases (it may ask for their Apple ID password), then reports each one when
+    /// someone is signed in.
     public func restore() async throws {
         try await AppStore.sync()
-        try await reportCurrentEntitlements()
+        if account.isSignedIn {
+            try await reportCurrentEntitlements()
+        } else {
+            await refreshEntitlements()
+        }
     }
 
-    /// Reports what this Apple ID owns without prompting, e.g. right after signing in on a phone that already bought.
+    /// Reports what this Apple ID owns without prompting, e.g. right after signing in on a phone that already bought,
+    /// including purchases made signed out.
     public func reportCurrentEntitlements() async throws {
         var failure: Error?
         for await verification in Transaction.currentEntitlements {
@@ -121,10 +158,11 @@ public final class Store {
         }
     }
 
-    /// Renewals, Ask to Buy approvals and purchases made on other devices. Call once at launch.
+    /// Renewals, refunds, Ask to Buy approvals and purchases made on other devices. Call once at launch.
     public func startListening() {
         guard updates == nil else { return }
         updates = Task { [weak self] in
+            await self?.refreshEntitlements()
             for await verification in Transaction.updates {
                 do {
                     try await self?.report(verification)
@@ -136,19 +174,67 @@ public final class Store {
     }
 
     private func report(_ verification: VerificationResult<Transaction>) async throws {
-        guard case .verified(let transaction) = verification else {
-            throw APIError(code: "UNVERIFIED_PURCHASE", message: "The App Store couldn’t confirm that purchase. Please try again.", requestId: nil)
+        guard case .verified(let transaction) = verification else { throw Self.unverified }
+        guard account.isSignedIn else {
+            // StoreKit keeps it as an entitlement, so it's reported after the next sign-in all the same.
+            await transaction.finish()
+            await refreshLocal()
+            return
         }
-        // Left unfinished while signed out, so it's reported after the next sign-in.
-        guard account.isSignedIn else { return }
         do {
             entitlements = try await account.authorized { [api] token in
                 try await api.recordPurchase(signedTransaction: verification.jwsRepresentation, accessToken: token)
             }
             await transaction.finish()
-        } catch let error as APIError where Self.permanentFailures.contains(error.code) {
-            await transaction.finish()
+        } catch {
+            if let error = error as? APIError, Self.permanentFailures.contains(error.code) {
+                await transaction.finish()
+            }
+            await refreshLocal()
             throw error
         }
+        await refreshLocal()
+    }
+
+    private static let unverified = APIError(code: "UNVERIFIED_PURCHASE", message: "The App Store couldn’t confirm that purchase. Please try again.",
+                                             requestId: nil)
+
+    private func refreshLocal() async {
+        var local = LocalEntitlements()
+        for await verification in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = verification, transaction.revocationDate == nil else { continue }
+            if Self.proProductIDs.contains(transaction.productID) {
+                local.proUntil = [local.proUntil, transaction.expirationDate].compactMap { $0 }.max()
+            } else {
+                local.packProductIDs.insert(transaction.productID)
+            }
+        }
+        self.local = local
+        publishPro()
+    }
+
+    /// Hands the Pro end date to the parts of the app that can't ask the Store: the Kit's syncs and the extensions.
+    private func publishPro() {
+        ProAccess.until = proUntil
+    }
+
+    private static func current(_ productID: String) async -> VerificationResult<Transaction>? {
+        for await verification in Transaction.currentEntitlements {
+            if case .verified(let transaction) = verification, transaction.productID == productID, transaction.revocationDate == nil {
+                return verification
+            }
+        }
+        return nil
+    }
+}
+
+/// What StoreKit says this Apple ID owns, unrevoked.
+public struct LocalEntitlements: Equatable, Sendable {
+    public var proUntil: Date?
+    public var packProductIDs: Set<String> = []
+
+    public init(proUntil: Date? = nil, packProductIDs: Set<String> = []) {
+        self.proUntil = proUntil
+        self.packProductIDs = packProductIDs
     }
 }

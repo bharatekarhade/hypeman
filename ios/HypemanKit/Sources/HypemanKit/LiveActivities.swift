@@ -25,7 +25,8 @@ public struct GoalActivityAttributes: ActivityAttributes {
 
 /// Keeps one Live Activity per started, unfinished goal. Rebuilt from the goal store after every change, like Reminders,
 /// so finishing, undoing or deleting a goal anywhere ends its activity. Each start of a goal gets one activity: once the
-/// user swipes it away (or iOS ends it after hours), it stays gone until the goal is started afresh.
+/// user swipes it away (or iOS ends it after hours), it stays gone until the goal is started afresh. A Pro feature
+/// (DI-04): without Pro, every activity ends.
 public enum LiveActivities {
     private static let log = Logger(subsystem: "com.hypeman.app", category: "LiveActivities")
     private static let shownKey = "LiveActivities.shown"
@@ -45,7 +46,7 @@ public enum LiveActivities {
 
     public static func sync(in context: ModelContext) {
         guard isAvailable, let goals = try? GoalStore.remaining(in: context) else { return }
-        let wanted = wanted(from: goals)
+        let wanted = ProAccess.isActive() ? wanted(from: goals) : [:]
         latest.withLock { latest in
             latest = Task { [previous = latest] in
                 await previous?.value

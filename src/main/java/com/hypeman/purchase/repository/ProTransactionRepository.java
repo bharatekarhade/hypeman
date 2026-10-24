@@ -11,4 +11,6 @@ public interface ProTransactionRepository extends JpaRepository<ProTransaction, 
     Optional<ProTransaction> findByTransactionId(String transactionId);
 
     List<ProTransaction> findByUserId(UUID userId);
+
+    Optional<ProTransaction> findFirstByOriginalTransactionId(String originalTransactionId);
 }

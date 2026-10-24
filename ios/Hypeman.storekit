@@ -52,7 +52,7 @@
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Every pack, new ones as they land.",
+              "description" : "Hard mode and the Live Activity.",
               "displayName" : "Hypeman Pro (monthly)",
               "locale" : "en_US"
             }
@@ -74,10 +74,14 @@
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "6739000003",
-          "introductoryOffer" : null,
+          "introductoryOffer" : {
+            "internalID" : "6739000004",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
           "localizations" : [
             {
-              "description" : "Every pack, new ones as they land.",
+              "description" : "Hard mode and the Live Activity.",
               "displayName" : "Hypeman Pro (yearly)",
               "locale" : "en_US"
             }

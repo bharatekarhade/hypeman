@@ -5,7 +5,7 @@ import SwiftData
 import SwiftUI
 
 /// Picks who yells: the bundled default pack or one from the store, downloaded whole before it takes over. Paid packs
-/// are bought one at a time, or all come with Pro.
+/// are bought one at a time, signed in or not; Pro doesn't include them.
 struct PacksView: View {
     @Binding var active: InstalledPack?
     @Environment(\.dismiss) private var dismiss
@@ -15,8 +15,6 @@ struct PacksView: View {
     @State private var phase = Phase.loading
     @State private var installing: UUID?
     @State private var buying: String?
-    @State private var showAccount = false
-    @State private var manageSubscription = false
     @State private var failure: String?
 
     private let log = Logger(subsystem: "com.hypeman.app", category: "PacksView")
@@ -26,8 +24,6 @@ struct PacksView: View {
             VStack(alignment: .leading, spacing: 12) {
                 header
                     .padding(.bottom, 8)
-                ProCard(products: store.proProducts, proUntil: store.isPro ? store.entitlements?.proUntil : nil, buying: buying,
-                        buy: buy, manage: { manageSubscription = true })
                 PackCard(
                     title: "Default pack",
                     description: "Hypeman’s own voice. Always on your phone.",
@@ -80,8 +76,6 @@ struct PacksView: View {
         .foregroundStyle(Theme.ink)
         .task { await load() }
         .task(id: account.isSignedIn) { await store.refreshEntitlements() }
-        .sheet(isPresented: $showAccount) { AccountSheet() }
-        .manageSubscriptionsSheet(isPresented: $manageSubscription)
         .alert("Something went wrong", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -143,12 +137,7 @@ struct PacksView: View {
         }
     }
 
-    /// Purchases belong to an account, so buying starts with signing in.
     private func buy(_ product: Product) {
-        guard account.isSignedIn else {
-            showAccount = true
-            return
-        }
         guard buying == nil else { return }
         buying = product.id
         Task {
@@ -163,10 +152,6 @@ struct PacksView: View {
     }
 
     private func restore() {
-        guard account.isSignedIn else {
-            showAccount = true
-            return
-        }
         buying = "restore"
         Task {
             defer { buying = nil }
@@ -298,75 +283,6 @@ private struct PackCard: View {
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .foregroundStyle(Theme.muted)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line))
-        }
-    }
-}
-
-/// Every pack for one subscription. Shows the prices StoreKit gives, or how long Pro lasts for someone who has it.
-private struct ProCard: View {
-    let products: [Product]
-    /// Set when the user is Pro.
-    let proUntil: Date?
-    let buying: String?
-    let buy: (Product) -> Void
-    let manage: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HazardStripes()
-                .frame(height: 10)
-            VStack(alignment: .leading, spacing: 12) {
-                SectionLabel("HYPEMAN PRO")
-                Text("Every pack. New ones as they land.")
-                    .font(Theme.text(20, weight: .bold, relativeTo: .title3))
-                if let proUntil {
-                    Text("You’re Pro until \(proUntil.formatted(date: .abbreviated, time: .omitted)).")
-                        .font(Theme.text(15, relativeTo: .subheadline))
-                        .foregroundStyle(Theme.muted)
-                    Button("Manage subscription", action: manage)
-                        .font(Theme.text(15, weight: .bold, relativeTo: .subheadline))
-                        .foregroundStyle(Theme.ink)
-                        .frame(minHeight: 44)
-                } else if products.isEmpty {
-                    Text("Not available right now.")
-                        .font(Theme.text(15, relativeTo: .subheadline))
-                        .foregroundStyle(Theme.muted)
-                } else {
-                    ForEach(products, id: \.id) { product in
-                        Button { buy(product) } label: {
-                            Group {
-                                if buying == product.id {
-                                    ProgressView()
-                                } else {
-                                    Text("\(product.displayPrice) / \(period(of: product))")
-                                        .font(Theme.display(20, relativeTo: .headline))
-                                        .kerning(1.2)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 12))
-                            .foregroundStyle(Theme.onAccent)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(buying != nil)
-                    }
-                    Text("Renews automatically until you cancel in Settings.")
-                        .font(Theme.text(13, relativeTo: .footnote))
-                        .foregroundStyle(Theme.muted)
-                }
-            }
-            .padding(EdgeInsets(top: 16, leading: 18, bottom: 16, trailing: 18))
-        }
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-    }
-
-    private func period(of product: Product) -> String {
-        switch product.subscription?.subscriptionPeriod.unit {
-        case .year: "YEAR"
-        case .month: "MONTH"
-        case .week: "WEEK"
-        default: "PERIOD"
         }
     }
 }
