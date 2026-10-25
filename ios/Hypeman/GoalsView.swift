@@ -18,6 +18,7 @@ struct GoalsView: View {
     @State private var showPacks = false
     @State private var showLock = false
     @State private var showAccount = false
+    @State private var showFriends = false
     @State private var store = Store.shared
     @State private var reminderGoal: Goal?
     /// A tapped notification's goal, waiting for an open sheet to finish closing.
@@ -103,6 +104,15 @@ struct GoalsView: View {
         .onChange(of: NotificationRouter.shared.goalToStart, initial: true) { _, goalID in
             startFromNotification(goalID)
         }
+        .onChange(of: NotificationRouter.shared.openFriends, initial: true) { _, open in
+            guard open else { return }
+            NotificationRouter.shared.openFriends = false
+            showPacks = false
+            showLock = false
+            showAccount = false
+            reminderGoal = nil
+            showFriends = true
+        }
         .onChange(of: store.isPro) {
             // Pro starting or ending turns hard mode and the Live Activity on or off (PY-06).
             AppLock.sync(in: context)
@@ -124,6 +134,9 @@ struct GoalsView: View {
         }
         .sheet(isPresented: $showAccount, onDismiss: startPending) {
             AccountSheet()
+        }
+        .sheet(isPresented: $showFriends, onDismiss: startPending) {
+            FriendsView()
         }
         .sheet(item: $reminderGoal, onDismiss: startPending) { goal in
             ReminderSheet(goal: goal) { date in
@@ -174,6 +187,17 @@ struct GoalsView: View {
             .buttonStyle(.plain)
             .padding(.top, 8)
             .accessibilityLabel("Account")
+            Button { showFriends = true } label: {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(width: 36, height: 36)
+                    .background(Theme.surface, in: Circle())
+                    .overlay(Circle().stroke(Theme.line))
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            .accessibilityLabel("Friends")
             Button { showLock = true } label: {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 13, weight: .bold))
@@ -255,11 +279,12 @@ struct GoalsView: View {
     private func startFromNotification(_ goalID: UUID?) {
         guard let goalID else { return }
         NotificationRouter.shared.goalToStart = nil
-        if showPacks || showLock || showAccount || reminderGoal != nil {
+        if showPacks || showLock || showAccount || showFriends || reminderGoal != nil {
             pendingStart = goalID
             showPacks = false
             showLock = false
             showAccount = false
+            showFriends = false
             reminderGoal = nil
         } else {
             start(goalID)

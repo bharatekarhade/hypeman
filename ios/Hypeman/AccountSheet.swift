@@ -88,6 +88,7 @@ struct AccountSheet: View {
                 Task {
                     busy = true
                     await account.signOut()
+                    Friends.shared.clear()
                     busy = false
                 }
             } label: {
@@ -142,6 +143,7 @@ struct AccountSheet: View {
             try await account.signInWithApple(identityToken: credential.token, nonce: nonce.raw, appleUserID: credential.user)
             // Purchases this Apple ID already made, e.g. before reinstalling.
             try? await Store.shared.reportCurrentEntitlements()
+            await PushRegistration.registerIfAllowed()
         } catch {
             show(error)
         }

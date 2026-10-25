@@ -62,8 +62,94 @@ public struct HypemanAPI: Sendable {
         let _: Empty = try await send("DELETE", "v1/me", body: body, token: accessToken)
     }
 
-    private func send<T: Decodable>(_ method: String, _ path: String, body: [String: String]? = nil, token: String? = nil) async throws -> T {
-        var request = URLRequest(url: baseURL.appending(path: path))
+    // MARK: Friends and yells
+
+    /// The name friends see.
+    public func updateMe(displayName: String, accessToken: String) async throws -> User {
+        try await send("PATCH", "v1/me", body: ["displayName": displayName], token: accessToken)
+    }
+
+    /// A one-use code, and a link carrying it, to send a friend.
+    public func createInvite(accessToken: String) async throws -> Invite {
+        try await send("POST", "v1/invites", token: accessToken)
+    }
+
+    /// Returns the new friend.
+    public func acceptInvite(code: String, accessToken: String) async throws -> User {
+        let response: FriendResponse = try await send("POST", "v1/invites/\(code)/accept", token: accessToken)
+        return response.friend
+    }
+
+    public func friends(accessToken: String) async throws -> [User] {
+        let response: FriendsResponse = try await send("GET", "v1/friends", token: accessToken)
+        return response.friends
+    }
+
+    public func removeFriend(_ userID: UUID, accessToken: String) async throws {
+        let _: Empty = try await send("DELETE", "v1/friends/\(userID.uuidString.lowercased())", token: accessToken)
+    }
+
+    /// Ends the friendship and hides their yells.
+    public func block(_ userID: UUID, accessToken: String) async throws {
+        let _: Empty = try await send("POST", "v1/blocks", body: ["userId": userID.uuidString.lowercased()], token: accessToken)
+    }
+
+    /// Creates an audio-only yell and the link to PUT its recording to, which must be exactly `audioSize` bytes.
+    public func createYell(role: ClipRole, caption: String, audioSize: Int, accessToken: String) async throws -> YellUpload {
+        try await send("POST", "v1/yells/upload-urls", body: YellRequest(role: role, caption: caption, audioSize: audioSize), token: accessToken)
+    }
+
+    /// Uploads a file straight to S3 with a presigned link.
+    public func upload(_ file: URL, to upload: PresignedUpload) async throws {
+        var request = URLRequest(url: upload.url)
+        request.httpMethod = "PUT"
+        for (header, value) in upload.headers {
+            request.setValue(value, forHTTPHeaderField: header)
+        }
+        let (_, response) = try await session.upload(for: request, fromFile: file)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+            throw APIError(code: "UPLOAD_FAILED", message: "The recording didn’t upload. Check your connection and try again.", requestId: nil)
+        }
+    }
+
+    /// Safe to repeat. Fails with SEND_CAP_REACHED past the free monthly cap.
+    public func sendYell(_ yellID: UUID, to recipients: [UUID], accessToken: String) async throws -> SendResult {
+        try await send("POST", "v1/yells/\(yellID.uuidString.lowercased())/send", body: ["recipientIds": recipients.map { $0.uuidString.lowercased() }],
+                       token: accessToken)
+    }
+
+    /// Newest first. Pass the previous page's `nextCursor` for the next one.
+    public func inbox(cursor: String? = nil, accessToken: String) async throws -> InboxPage {
+        try await send("GET", "v1/inbox", query: cursor.map { [URLQueryItem(name: "cursor", value: $0)] } ?? [], token: accessToken)
+    }
+
+    public func saveDelivery(_ deliveryID: UUID, accessToken: String) async throws {
+        let _: Empty = try await send("POST", "v1/inbox/\(deliveryID.uuidString.lowercased())/save", token: accessToken)
+    }
+
+    public func hideDelivery(_ deliveryID: UUID, accessToken: String) async throws {
+        let _: Empty = try await send("POST", "v1/inbox/\(deliveryID.uuidString.lowercased())/hide", token: accessToken)
+    }
+
+    public func report(_ yellID: UUID, reason: ReportReason, accessToken: String) async throws {
+        let _: Empty = try await send("POST", "v1/reports", body: ["yellId": yellID.uuidString.lowercased(), "reason": reason.rawValue],
+                                      token: accessToken)
+    }
+
+    /// The push token for the device this access token was issued to.
+    public func registerDevice(apnsToken: String, sandbox: Bool, accessToken: String) async throws {
+        let _: Empty = try await send("POST", "v1/devices", body: ["apnsToken": apnsToken, "environment": sandbox ? "SANDBOX" : "PRODUCTION"],
+                                      token: accessToken)
+    }
+
+    private func send<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = [], body: (any Encodable)? = nil,
+                                    token: String? = nil) async throws -> T {
+        var url = baseURL.appending(path: path)
+        if !query.isEmpty {
+            url.append(queryItems: query)
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {
@@ -113,6 +199,90 @@ public struct HypemanAPI: Sendable {
     private struct MediaResponse: Decodable {
         let clips: [ClipMedia]
     }
+
+    private struct FriendResponse: Decodable {
+        let friend: User
+    }
+
+    private struct FriendsResponse: Decodable {
+        let friends: [User]
+    }
+
+    private struct YellRequest: Encodable {
+        let role: ClipRole
+        let caption: String
+        let audioSize: Int
+    }
+}
+
+public struct Invite: Decodable, Equatable, Sendable {
+    public let code: String
+    public let link: URL
+    public let expiresAt: Date
+}
+
+/// A link to PUT one file to S3, with headers to send exactly as given.
+public struct PresignedUpload: Decodable, Equatable, Sendable {
+    public let url: URL
+    public let headers: [String: String]
+    public let expiresAt: Date
+}
+
+public struct YellUpload: Decodable, Equatable, Sendable {
+    public let yellId: UUID
+    public let audioUpload: PresignedUpload
+}
+
+public struct SendResult: Decodable, Equatable, Sendable {
+    public let recipients: Int
+    /// Nil for Pro, which has no cap.
+    public let sendsLeftThisMonth: Int?
+}
+
+/// A yell a friend sent.
+public struct InboxItem: Decodable, Equatable, Identifiable, Sendable {
+    public let deliveryId: UUID
+    public let yellId: UUID
+    /// Nil if the sender's account was deleted since.
+    public let sender: User?
+    public let role: ClipRole
+    public let caption: String
+    /// Nil until the server has checked the recording.
+    public let durationMs: Int?
+    public let audioUrl: URL
+    public let videoUrl: URL?
+    public let savedAt: Date?
+    public let receivedAt: Date
+
+    public var id: UUID { deliveryId }
+
+    public init(deliveryId: UUID, yellId: UUID, sender: User?, role: ClipRole, caption: String, durationMs: Int?, audioUrl: URL,
+                videoUrl: URL?, savedAt: Date?, receivedAt: Date) {
+        self.deliveryId = deliveryId
+        self.yellId = yellId
+        self.sender = sender
+        self.role = role
+        self.caption = caption
+        self.durationMs = durationMs
+        self.audioUrl = audioUrl
+        self.videoUrl = videoUrl
+        self.savedAt = savedAt
+        self.receivedAt = receivedAt
+    }
+}
+
+public struct InboxPage: Decodable, Equatable, Sendable {
+    public let deliveries: [InboxItem]
+    /// Nil on the last page.
+    public let nextCursor: String?
+}
+
+public enum ReportReason: String, CaseIterable, Codable, Sendable {
+    case spam = "SPAM"
+    case harassment = "HARASSMENT"
+    case hate = "HATE"
+    case sexual = "SEXUAL"
+    case other = "OTHER"
 }
 
 public struct SignInResponse: Decodable, Sendable {
@@ -142,6 +312,8 @@ public struct Me: Decodable, Equatable, Sendable {
     public let user: User
     public let identities: [Identity]
     public let proUntil: Date?
+    /// Free friend yells left this month; nil for Pro, which has no cap.
+    public var sendsLeftThisMonth: Int?
 }
 
 public struct Entitlements: Decodable, Equatable, Sendable {
