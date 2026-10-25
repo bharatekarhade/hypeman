@@ -4,6 +4,8 @@ import com.hypeman.auth.model.Device;
 import com.hypeman.auth.repository.DeviceRepository;
 import com.hypeman.common.ApplicationException;
 import com.hypeman.user.model.UserDeletedEvent;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -39,9 +41,26 @@ public class DeviceService {
         devices.findByApnsTokenAndUserId(apnsToken, userId).ifPresent(Device::clearPushToken);
     }
 
+    /** Where to push for these users: their devices that allowed notifications. */
+    @Transactional(readOnly = true)
+    public List<PushTarget> pushTargets(Collection<UUID> userIds) {
+        return devices.findByUserIdInAndApnsTokenIsNotNull(userIds).stream()
+                .map(device -> new PushTarget(device.getApnsToken(), device.getEnvironment()))
+                .toList();
+    }
+
+    /** APNs says the token will never work again, usually because the app was deleted. */
+    @Transactional
+    public void dropPushToken(String apnsToken) {
+        devices.findByApnsToken(apnsToken).ifPresent(Device::clearPushToken);
+    }
+
     /** Signs a deleted user out everywhere; their refresh tokens go with the devices. */
     @EventListener
     void onUserDeleted(UserDeletedEvent event) {
         devices.deleteByUserId(event.userId());
+    }
+
+    public record PushTarget(String apnsToken, Device.ApnsEnvironment environment) {
     }
 }

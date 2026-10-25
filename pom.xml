@@ -73,6 +73,12 @@
             <artifactId>app-store-server-library</artifactId>
             <version>5.2.0</version>
         </dependency>
+        <!-- Sends push notifications through APNs. -->
+        <dependency>
+            <groupId>com.eatthepath</groupId>
+            <artifactId>pushy</artifactId>
+            <version>0.15.4</version>
+        </dependency>
         <!-- Verifies Apple and Google ID tokens and our own access tokens (Nimbus JOSE + JWT). -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

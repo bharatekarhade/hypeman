@@ -6,11 +6,15 @@ import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.model.User;
 import com.hypeman.user.model.UserDeletedEvent;
 import com.hypeman.user.model.UserIdentity;
+import com.hypeman.user.model.UserView;
 import com.hypeman.user.repository.UserIdentityRepository;
 import com.hypeman.user.repository.UserRepository;
 import java.time.Clock;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +64,21 @@ public class UserService {
         return users.findById(userId)
                 .filter(user -> !user.isDeleted())
                 .orElseThrow(() -> new ApplicationException("ACCOUNT_DELETED", "This account was deleted."));
+    }
+
+    /** Users as others see them, for the ones that still exist; deleted users are left out. */
+    @Transactional(readOnly = true)
+    public Map<UUID, UserView> views(Collection<UUID> userIds) {
+        return users.findAllById(userIds).stream()
+                .filter(user -> !user.isDeleted())
+                .collect(Collectors.toMap(User::getId, UserView::of));
+    }
+
+    @Transactional
+    public User rename(UUID userId, String displayName) {
+        User user = get(userId);
+        user.rename(displayName.strip());
+        return user;
     }
 
     @Transactional(readOnly = true)
