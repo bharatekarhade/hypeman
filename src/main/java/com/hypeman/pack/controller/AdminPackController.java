@@ -1,5 +1,6 @@
 package com.hypeman.pack.controller;
 
+import com.hypeman.admin.service.AuditLog;
 import com.hypeman.pack.model.CatalogPack;
 import com.hypeman.pack.model.Clip;
 import com.hypeman.pack.model.ClipRole;
@@ -26,15 +27,18 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Making default packs: create a draft, upload a video for each of the four roles straight to S3, confirm each upload,
  * then publish. Behind the admin token (see SecurityConfig), so there's no creator: every pack made here is a default pack.
+ * Every change goes in the audit log.
  */
 @RestController
 @RequestMapping("/v1/admin")
 class AdminPackController {
 
     private final PackService packs;
+    private final AuditLog audit;
 
-    AdminPackController(PackService packs) {
+    AdminPackController(PackService packs, AuditLog audit) {
         this.packs = packs;
+        this.audit = audit;
     }
 
     @GetMapping("/packs")
@@ -50,24 +54,30 @@ class AdminPackController {
     @PostMapping("/packs")
     ResponseEntity<AdminPackView> create(@Valid @RequestBody CreatePackRequest body) {
         Pack pack = packs.createDefaultPack(body.title(), body.description(), body.isExplicit(), body.productId());
+        audit.record("pack.create", "pack:" + pack.getId(), body.title());
         return ResponseEntity.created(URI.create("/v1/admin/packs/" + pack.getId())).body(AdminPackView.of(new CatalogPack(pack, List.of())));
     }
 
     /** Step one of a clip: a signed link to PUT the video to. Uploading a role again replaces that role's clip. */
     @PostMapping("/packs/{packId}/clips")
     ClipUpload requestUpload(@PathVariable UUID packId, @Valid @RequestBody ClipUploadRequest body) {
-        return packs.requestClipUpload(packId, null, body.role(), body.caption(), body.contentType(), body.sizeBytes());
+        ClipUpload upload = packs.requestClipUpload(packId, null, body.role(), body.caption(), body.contentType(), body.sizeBytes());
+        audit.record("clip.upload", "pack:" + packId, body.role().name());
+        return upload;
     }
 
     /** Step two, once the PUT to S3 has finished. */
     @PostMapping("/clips/{clipId}/complete")
     AdminClipView completeUpload(@PathVariable UUID clipId) {
-        return AdminClipView.of(packs.completeClipUpload(clipId));
+        Clip clip = packs.completeClipUpload(clipId);
+        audit.record("clip.complete", "clip:" + clipId, null);
+        return AdminClipView.of(clip);
     }
 
     @PostMapping("/packs/{packId}/publish")
     AdminPackView publish(@PathVariable UUID packId) {
         packs.publish(packId);
+        audit.record("pack.publish", "pack:" + packId, null);
         return AdminPackView.of(packs.pack(packId));
     }
 
