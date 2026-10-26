@@ -65,4 +65,8 @@ public class Report {
     public ReportStatus getStatus() {
         return status;
     }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 }
