@@ -6,6 +6,7 @@ import com.hypeman.auth.model.RefreshToken;
 import com.hypeman.auth.repository.DeviceRepository;
 import com.hypeman.auth.repository.RefreshTokenRepository;
 import com.hypeman.common.ApplicationException;
+import com.hypeman.user.model.UserBannedEvent;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -14,6 +15,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
+import org.springframework.context.event.EventListener;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -98,6 +100,12 @@ public class TokenService {
         tokens.findByTokenHash(hash(refreshToken))
                 .filter(token -> token.getUserId().equals(userId))
                 .ifPresent(token -> token.revoke(clock.instant()));
+    }
+
+    /** A banned user is signed out everywhere once their access tokens run out, within 15 minutes. */
+    @EventListener
+    void onUserBanned(UserBannedEvent event) {
+        tokens.revokeAllForUser(event.userId(), clock.instant());
     }
 
     private TokenPair issue(UUID userId, UUID deviceId, Instant now) {

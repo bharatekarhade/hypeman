@@ -6,6 +6,7 @@ import com.hypeman.friend.service.FriendshipService;
 import com.hypeman.media.service.MediaStorage;
 import com.hypeman.media.service.MediaStorage.PresignedUpload;
 import com.hypeman.pack.model.ClipRole;
+import com.hypeman.user.model.UserBannedEvent;
 import com.hypeman.user.model.UserDeletedEvent;
 import com.hypeman.user.model.UserView;
 import com.hypeman.user.service.UserService;
@@ -181,6 +182,12 @@ public class YellService {
     /** A deleted user's yells disappear from every inbox at once. */
     @EventListener
     void onUserDeleted(UserDeletedEvent event) {
+        yells.removeAllBy(event.userId());
+    }
+
+    /** So does a banned user's. */
+    @EventListener
+    void onUserBanned(UserBannedEvent event) {
         yells.removeAllBy(event.userId());
     }
 
