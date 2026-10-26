@@ -5,6 +5,7 @@ import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.hypeman.TestcontainersConfiguration;
+import com.hypeman.auth.config.AdminProperties;
 import com.hypeman.auth.config.AuthProperties;
 import com.hypeman.auth.repository.DeviceRepository;
 import com.hypeman.auth.service.IdentityTokenVerifier;
@@ -77,6 +78,9 @@ class AuthFlowTests {
 
     @Autowired
     DeviceRepository devices;
+
+    @Autowired
+    AdminProperties admin;
 
     @DynamicPropertySource
     static void appleApi(DynamicPropertyRegistry registry) {
@@ -243,6 +247,25 @@ class AuthFlowTests {
     }
 
     @Test
+    void aBannedUserIsSignedOutAndCantSignInUntilUnbanned() throws Exception {
+        String subject = newSubject();
+        MvcTestResult signIn = signInWithApple(subject, UUID.randomUUID());
+        String userId = read(signIn, "$.user.id");
+
+        assertThat(adminPost("/v1/admin/users/" + userId + "/ban", "{\"reason\": \"Harassment\"}")).hasStatusOk();
+
+        assertThat(refresh(read(signIn, "$.refreshToken"))).hasStatus(HttpStatus.UNAUTHORIZED);
+        assertError(mvc.get().uri("/v1/me").header(AUTHORIZATION, bearer(signIn)).exchange(), HttpStatus.FORBIDDEN, "ACCOUNT_BANNED");
+        assertError(signInWithApple(subject, UUID.randomUUID()), HttpStatus.FORBIDDEN, "ACCOUNT_BANNED");
+
+        assertThat(adminPost("/v1/admin/users/" + userId + "/unban", null)).hasStatusOk();
+
+        MvcTestResult again = signInWithApple(subject, UUID.randomUUID());
+        assertThat(again).hasStatusOk();
+        assertThat(read(again, "$.user.id")).isEqualTo(userId);
+    }
+
+    @Test
     void deletingAnAppleAccountNeedsAFreshAppleConfirmation() throws Exception {
         MvcTestResult signIn = signInWithApple(newSubject(), UUID.randomUUID());
 
@@ -321,6 +344,11 @@ class AuthFlowTests {
     private MvcTestResult deleteAccount(MvcTestResult signIn, String appleAuthorizationCode) throws Exception {
         return mvc.delete().uri("/v1/me").header(AUTHORIZATION, bearer(signIn)).contentType(APPLICATION_JSON)
                 .content("{\"appleAuthorizationCode\": \"%s\"}".formatted(appleAuthorizationCode)).exchange();
+    }
+
+    private MvcTestResult adminPost(String uri, String json) {
+        var request = mvc.post().uri(uri).header(AUTHORIZATION, "Bearer " + admin.token());
+        return json == null ? request.exchange() : request.contentType(APPLICATION_JSON).content(json).exchange();
     }
 
     private MvcTestResult post(String uri, String json) {
