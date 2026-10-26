@@ -114,7 +114,7 @@ struct AccountSheet: View {
                         .font(Theme.text(12, weight: .bold, relativeTo: .caption))
                         .kerning(1.2)
                         .foregroundStyle(Theme.muted)
-                    Text(store.isPro ? "You’re Pro" : "Hard mode and the Live Activity")
+                    Text(store.isPro ? "You’re Pro" : "Hard mode, your own voices and more")
                         .font(Theme.text(16, weight: .bold))
                 }
                 Spacer()

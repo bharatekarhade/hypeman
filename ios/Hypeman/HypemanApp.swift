@@ -13,6 +13,7 @@ struct HypemanApp: App {
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
         Reminders.registerActions()
         Store.shared.startListening()
+        MotivatorLibrary.shared.migrateActivePack()
         // Catch up on anything that changed while the app wasn't running, such as a reminder that already went off.
         Reminders.sync(in: GoalStore.container.mainContext)
     }

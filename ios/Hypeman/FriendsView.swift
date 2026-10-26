@@ -9,7 +9,7 @@ struct FriendsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var account = Account.shared
     @State private var friends = Friends.shared
-    @State private var saved = SavedYells.shared.all
+    @State private var saved = FriendsView.savedYells
     @State private var loading = false
     @State private var invite: Invite?
     @State private var code = ""
@@ -152,12 +152,12 @@ struct FriendsView: View {
                     .foregroundStyle(Theme.muted)
             }
             ForEach(friends.inbox) { item in
-                InboxRow(item: item, isSaved: saved.contains { $0.id == item.yellId }) {
+                InboxRow(item: item, isSaved: saved.contains { $0.id == "yell:\(item.yellId.uuidString.lowercased())" }) {
                     ClipPreview.shared.play(item.audioUrl)
                 } save: {
                     run {
                         try await friends.save(item)
-                        saved = SavedYells.shared.all
+                        saved = Self.savedYells
                     }
                 } hide: {
                     run { try await friends.hide(item) }
@@ -176,37 +176,28 @@ struct FriendsView: View {
         }
     }
 
+    /// Saved yells are voices: they can yell for goals from the Voices screen.
     private var savedSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionLabel("SAVED")
+            Text("Use them as a voice for your goals in Voices.")
+                .font(Theme.text(13, relativeTo: .footnote))
+                .foregroundStyle(Theme.muted)
             ForEach(saved) { yell in
-                Button { ClipPreview.shared.play(SavedYells.shared.audioURL(for: yell)) } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "play.fill")
-                            .frame(width: 36, height: 36)
-                            .background(Theme.surface, in: Circle())
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("“\(yell.caption)”")
-                                .font(Theme.text(15, weight: .semibold, relativeTo: .subheadline))
-                                .lineLimit(2)
-                            Text("\(yell.senderName ?? "A friend") · \(yell.role.title)")
-                                .font(Theme.text(13, relativeTo: .footnote))
-                                .foregroundStyle(Theme.muted)
-                        }
-                        Spacer(minLength: 0)
+                VoiceRow(voice: yell, isSelected: false, isLocked: false) {
+                    if let clip = yell.clips.first, let url = MotivatorLibrary.shared.url(of: clip, in: yell) {
+                        ClipPreview.shared.play(url)
                     }
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    Button("Delete", systemImage: "trash", role: .destructive) {
-                        try? SavedYells.shared.remove(yell)
-                        saved = SavedYells.shared.all
-                    }
+                } remove: {
+                    try? MotivatorLibrary.shared.remove(yell.id)
+                    saved = Self.savedYells
                 }
             }
         }
+    }
+
+    private static var savedYells: [Motivator] {
+        MotivatorLibrary.shared.all.filter { $0.kind == .yell }
     }
 
     private var friendsSection: some View {

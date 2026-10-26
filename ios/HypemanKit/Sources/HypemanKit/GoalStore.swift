@@ -55,6 +55,13 @@ public enum GoalStore {
     }
 
     /// The Snooze button: the reminder moves to ten minutes from now and the nags follow from there.
+    /// Nil goes back to the default motivator.
+    public static func setMotivator(_ id: UUID, to motivatorID: String?, in context: ModelContext) throws {
+        guard let goal = try goal(id, in: context) else { return }
+        goal.motivatorID = motivatorID
+        try save(context)
+    }
+
     public static func snooze(_ id: UUID, in context: ModelContext) throws {
         guard let goal = try goal(id, in: context), goal.completedAt == nil, goal.startedAt == nil else { return }
         goal.reminderAt = .now.addingTimeInterval(Reminders.snoozeInterval)

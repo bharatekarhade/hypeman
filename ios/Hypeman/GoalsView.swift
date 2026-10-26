@@ -14,8 +14,9 @@ struct GoalsView: View {
     @State private var showEditor = false
     @State private var showSaveError = false
     @State private var focus: Focus?
-    @State private var activePack = PackLibrary.shared.active
+    @State private var voiceTitle = GoalsView.defaultVoiceTitle
     @State private var showPacks = false
+    @State private var voiceGoal: Goal?
     @State private var showLock = false
     @State private var showAccount = false
     @State private var showFriends = false
@@ -25,6 +26,11 @@ struct GoalsView: View {
     @State private var pendingStart: UUID?
 
     private let log = Logger(subsystem: "com.hypeman.app", category: "GoalsView")
+
+    private static var defaultVoiceTitle: String {
+        let library = MotivatorLibrary.shared
+        return library.motivator(library.defaultID)?.title ?? "Default pack"
+    }
 
     var body: some View {
         List {
@@ -55,6 +61,9 @@ struct GoalsView: View {
                 .contextMenu {
                     Button(goal.reminderAt == nil ? "Remind me" : "Change reminder", systemImage: "bell") {
                         reminderGoal = goal
+                    }
+                    Button("Voice", systemImage: "megaphone") {
+                        voiceGoal = goal
                     }
                     Button("Edit title", systemImage: "pencil") {
                         editingGoal = goal
@@ -111,6 +120,7 @@ struct GoalsView: View {
             showLock = false
             showAccount = false
             reminderGoal = nil
+            voiceGoal = nil
             showFriends = true
         }
         .onChange(of: store.isPro) {
@@ -121,8 +131,20 @@ struct GoalsView: View {
         .fullScreenCover(item: $focus) { focus in
             focusScreen(focus)
         }
-        .sheet(isPresented: $showPacks, onDismiss: startPending) {
-            PacksView(active: $activePack)
+        .sheet(isPresented: $showPacks, onDismiss: {
+            voiceTitle = Self.defaultVoiceTitle
+            Reminders.sync(in: context)
+            startPending()
+        }) {
+            VoicesView()
+        }
+        .sheet(item: $voiceGoal, onDismiss: startPending) { goal in
+            // A voice per goal is Pro (GL-08).
+            if store.isPro {
+                VoicePickerSheet(goal: goal)
+            } else {
+                PaywallSheet(headline: "Give every goal its own voice.")
+            }
         }
         .sheet(isPresented: $showLock, onDismiss: startPending) {
             // Hard mode is Pro (PY-03); buying it here turns the paywall into the app picker.
@@ -213,7 +235,7 @@ struct GoalsView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "megaphone.fill")
                         .font(.system(size: 12, weight: .bold))
-                    Text(activePack?.title ?? "Default pack")
+                    Text(voiceTitle)
                         .font(Theme.text(13, weight: .bold, relativeTo: .caption))
                         .lineLimit(1)
                 }
@@ -225,7 +247,7 @@ struct GoalsView: View {
             }
             .buttonStyle(.plain)
             .padding(.top, 8)
-            .accessibilityLabel("Packs, using \(activePack?.title ?? "Default pack")")
+            .accessibilityLabel("Voices, using \(voiceTitle)")
         }
     }
 
@@ -258,9 +280,9 @@ struct GoalsView: View {
     private func focusScreen(_ focus: Focus) -> some View {
         if let goal = (goals + completedGoals).first(where: { $0.id == focus.goalID }) {
             if focus.finished {
-                DoneView(goal: goal, next: goals.first, pack: activePack, doNext: doIt, close: { self.focus = nil })
+                DoneView(goal: goal, next: goals.first, doNext: doIt, close: { self.focus = nil })
             } else {
-                DoItView(goal: goal, pack: activePack, done: { finish(goal) }, close: { self.focus = nil })
+                DoItView(goal: goal, done: { finish(goal) }, close: { self.focus = nil })
             }
         } else {
             // The goal was deleted from the widget or another device while this screen was up.
@@ -279,13 +301,14 @@ struct GoalsView: View {
     private func startFromNotification(_ goalID: UUID?) {
         guard let goalID else { return }
         NotificationRouter.shared.goalToStart = nil
-        if showPacks || showLock || showAccount || showFriends || reminderGoal != nil {
+        if showPacks || showLock || showAccount || showFriends || reminderGoal != nil || voiceGoal != nil {
             pendingStart = goalID
             showPacks = false
             showLock = false
             showAccount = false
             showFriends = false
             reminderGoal = nil
+            voiceGoal = nil
         } else {
             start(goalID)
         }
@@ -305,21 +328,21 @@ struct GoalsView: View {
 
     private func doIt(_ goal: Goal) {
         if run({ try GoalStore.start(goal.id, in: context) }) {
-            YellPlayer.shared.play(.start)
+            YellPlayer.shared.play(.start, motivatorID: goal.motivatorID)
             focus = Focus(goalID: goal.id, finished: false)
         }
     }
 
     private func finish(_ goal: Goal) {
         if run({ try GoalStore.complete(goal.id, in: context) }) {
-            YellPlayer.shared.play(.congrats)
+            YellPlayer.shared.play(.congrats, motivatorID: goal.motivatorID)
             focus = Focus(goalID: goal.id, finished: true)
         }
     }
 
     private func complete(_ goal: Goal) {
         if run({ try GoalStore.complete(goal.id, in: context) }) {
-            YellPlayer.shared.play(.congrats)
+            YellPlayer.shared.play(.congrats, motivatorID: goal.motivatorID)
         }
     }
 

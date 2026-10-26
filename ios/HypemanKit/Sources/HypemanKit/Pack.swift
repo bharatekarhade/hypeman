@@ -10,7 +10,7 @@ public struct CatalogPack: Codable, Identifiable, Hashable, Sendable {
     public let isFree: Bool
     /// In role order: START, REMINDER, NAG, CONGRATS.
     public let clips: [CatalogClip]
-    /// The App Store product a paid pack is sold as. Pro unlocks it too.
+    /// The App Store product a paid pack is sold as; nil for a free pack.
     public var productId: String? = nil
 }
 
@@ -27,24 +27,4 @@ public struct ClipMedia: Codable, Hashable, Sendable {
     public let videoUrl: URL
     /// The notification sound, or nil for a clip processed before the server made them.
     public var alarmUrl: URL?
-}
-
-/// The pack on this phone that yells, as saved next to its videos.
-public struct InstalledPack: Codable, Equatable, Sendable {
-    public let id: UUID
-    public let title: String
-    public let clips: [Clip]
-
-    public struct Clip: Codable, Equatable, Sendable {
-        public let role: ClipRole
-        public let caption: String
-        /// The video's name inside the pack's folder.
-        public let fileName: String
-        /// The notification sound's name in the App Group's Library/Sounds, for REMINDER and NAG clips that have one.
-        public var soundName: String?
-    }
-
-    public func caption(for role: ClipRole) -> String? {
-        clips.first { $0.role == role }?.caption
-    }
 }

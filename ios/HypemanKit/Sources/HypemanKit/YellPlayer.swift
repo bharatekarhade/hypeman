@@ -1,21 +1,28 @@
 import AVFoundation
+import Observation
 import OSLog
 
-/// Plays the clip for a role: the installed pack's video, or the default pack's audio when there's no pack or it lacks
-/// that role. With no screen showing it, a video just plays its sound, so the widget's DO IT yells too.
+/// Plays the clip for a role from the goal's motivator (see MotivatorLibrary.resolve). With no screen showing it, a video
+/// just plays its sound, so the widget's DO IT yells too.
 @MainActor
+@Observable
 public final class YellPlayer {
     public static let shared = YellPlayer()
 
     /// The DO IT screen shows this player's picture while a pack video plays.
-    public let player = AVPlayer()
+    @ObservationIgnored public let player = AVPlayer()
+    /// What's playing, or played last, so the screens show its caption and whose voice it is. With shuffle on, only
+    /// this knows which motivator was picked.
+    public private(set) var nowPlaying: ResolvedClip?
 
-    private var endObserver: (any NSObjectProtocol)?
-    private let log = Logger(subsystem: "com.hypeman.app", category: "YellPlayer")
+    @ObservationIgnored private var endObserver: (any NSObjectProtocol)?
+    @ObservationIgnored private let log = Logger(subsystem: "com.hypeman.app", category: "YellPlayer")
 
-    public func play(_ role: ClipRole) {
-        guard let url = PackLibrary.shared.videoURL(for: role)
-            ?? Bundle.module.url(forResource: role.rawValue.lowercased(), withExtension: "m4a") else {
+    /// @param motivatorID the goal's own motivator, if it has one
+    public func play(_ role: ClipRole, motivatorID: String? = nil) {
+        let clip = MotivatorLibrary.shared.resolve(role, goalMotivatorID: motivatorID, pro: ProAccess.isActive())
+        nowPlaying = clip
+        guard let url = clip.url else {
             log.error("No clip for \(role.rawValue)")
             return
         }

@@ -63,25 +63,6 @@ struct FriendsTests {
         #expect(Friends.inviteCode(in: "https://hypeman.app/invite/ABCD2345") == "ABCD2345")
         #expect(Friends.inviteCode(in: " abcd-2345\n") == "ABCD2345")
     }
-
-    @Test func savedYellsKeepTheirRecording() async throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "saved-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: root) }
-        let recording = root.appending(path: "source.m4a")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        try Data("audio".utf8).write(to: recording)
-        let library = SavedYells(root: root)
-        let item = InboxItem(deliveryId: UUID(), yellId: UUID(), sender: nil, role: .congrats, caption: "Nice!", durationMs: 2000,
-                             audioUrl: recording, videoUrl: nil, savedAt: nil, receivedAt: .now)
-
-        try await library.add(item)
-        try await library.add(item)
-
-        #expect(library.all.map(\.id) == [item.yellId])
-        #expect(try Data(contentsOf: library.audioURL(for: library.all[0])) == Data("audio".utf8))
-        try library.remove(library.all[0])
-        #expect(library.all.isEmpty)
-    }
 }
 
 /// Answers each path with canned JSON and records what it was sent. Each instance has its own host.

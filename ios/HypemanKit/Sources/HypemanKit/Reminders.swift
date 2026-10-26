@@ -4,8 +4,8 @@ import OSLog
 import SwiftData
 import UserNotifications
 
-/// Local notifications for goals with a reminder time: the pack's REMINDER at that time, then its NAG twice while the goal
-/// still isn't started. Rebuilt from the goal store after every change, so they can't drift from the goals. Each one has a
+/// Local notifications for goals with a reminder time: the goal's motivator's REMINDER at that time, then its NAG twice
+/// while the goal still isn't started. Rebuilt from the goal store after every change, so they can't drift from the goals. Each one has a
 /// Snooze button; tapping it starts the goal.
 public enum Reminders {
     /// After the reminder, how long until each nag.
@@ -43,9 +43,12 @@ public enum Reminders {
 
     /// Replaces every pending notification with what the goals call for now, and clears delivered ones for goals that
     /// were started, finished or deleted. The notification center works asynchronously; see `scheduled()`.
-    public static func sync(in context: ModelContext, library: PackLibrary = .shared) {
+    public static func sync(in context: ModelContext, library: MotivatorLibrary = .shared) {
         guard center != nil, let goals = try? GoalStore.remaining(in: context) else { return }
-        let requests = Requests(all: requests(for: goals, pack: library.active, soundName: library.soundName(for:), now: .now))
+        let pro = ProAccess.isActive()
+        let requests = Requests(all: requests(for: goals, clip: { goal, role in
+            library.resolve(role, goalMotivatorID: goal.motivatorID, pro: pro)
+        }, now: .now))
         let waiting = Set(goals.filter { $0.startedAt == nil }.map(\.id.uuidString))
         latest.withLock { latest in
             latest = Task { [previous = latest] in
@@ -84,14 +87,16 @@ public enum Reminders {
     }
 
     /// The notifications for unfinished, unstarted goals whose reminder is still ahead, grouped by goal.
-    static func requests(for goals: [Goal], pack: InstalledPack?, soundName: (ClipRole) -> String?, now: Date) -> [UNNotificationRequest] {
+    static func requests(for goals: [Goal], clip: (Goal, ClipRole) -> ResolvedClip, now: Date) -> [UNNotificationRequest] {
         goals.filter { $0.completedAt == nil && $0.startedAt == nil }.flatMap { goal -> [UNNotificationRequest] in
             guard let reminderAt = goal.reminderAt else { return [] }
+            let reminderClip = clip(goal, .reminder)
+            let nagClip = clip(goal, .nag)
             let reminder = request(goal, role: .reminder, at: reminderAt, id: "reminder",
-                                   body: pack?.caption(for: .reminder) ?? "Time to do it.", sound: soundName(.reminder), now: now)
+                                   body: reminderClip.caption, sound: reminderClip.soundName, now: now)
             let nags = nagDelays.enumerated().map { index, delay in
                 request(goal, role: .nag, at: reminderAt.addingTimeInterval(delay), id: "nag-\(index + 1)",
-                        body: pack?.caption(for: .nag) ?? "Still not started. Get up.", sound: soundName(.nag), now: now)
+                        body: nagClip.caption, sound: nagClip.soundName, now: now)
             }
             return ([reminder] + nags).compactMap { $0 }
         }

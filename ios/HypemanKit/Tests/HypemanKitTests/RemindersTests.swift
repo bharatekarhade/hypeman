@@ -10,7 +10,7 @@ struct RemindersTests {
     @Test func aReminderComesWithTwoNags() throws {
         let goal = goal("Leg day", remindIn: 60)
 
-        let requests = Reminders.requests(for: [goal], pack: nil, soundName: { _ in nil }, now: now)
+        let requests = Reminders.requests(for: [goal], clip: builtIn, now: now)
 
         #expect(requests.map(\.identifier) == ["reminder", "nag-1", "nag-2"].map { "\(goal.id.uuidString)-\($0)" })
         #expect(try requests.map { try fireDate($0) } == [60, 660, 1860].map { now.addingTimeInterval($0) })
@@ -21,24 +21,28 @@ struct RemindersTests {
         #expect(requests.allSatisfy { Reminders.goalID(of: $0.content.userInfo) == goal.id })
     }
 
-    @Test func aPackSuppliesTheLinesAndSounds() {
-        let pack = InstalledPack(id: UUID(), title: "Coach", clips: [
-            .init(role: .reminder, caption: "Move it.", fileName: "reminder.mp4", soundName: "hypeman-x-reminder.caf"),
-            .init(role: .nag, caption: "I'm waiting.", fileName: "nag.mp4", soundName: "hypeman-x-nag.caf"),
-        ])
+    @Test func eachGoalsVoiceSuppliesItsLinesAndSounds() {
+        let coached = goal("Leg day", remindIn: 60)
+        coached.motivatorID = "pack:coach"
+        let plain = goal("Read", remindIn: 120)
 
-        let requests = Reminders.requests(for: [goal("Leg day", remindIn: 60)], pack: pack,
-                                          soundName: { role in pack.clips.first { $0.role == role }?.soundName }, now: now)
+        let requests = Reminders.requests(for: [coached, plain], clip: { goal, role in
+            guard goal.motivatorID == "pack:coach" else { return builtIn(goal, role) }
+            return ResolvedClip(motivatorID: "pack:coach", motivatorTitle: "Coach", role: role, caption: role == .reminder ? "Move it." : "I'm waiting.",
+                                url: nil, isVideo: true, soundName: "hypeman-x-\(role.rawValue.lowercased()).caf")
+        }, now: now)
 
-        #expect(requests.map(\.content.body) == ["Move it.", "I'm waiting.", "I'm waiting."])
+        #expect(requests.prefix(3).map(\.content.body) == ["Move it.", "I'm waiting.", "I'm waiting."])
         #expect(requests.first?.content.sound == UNNotificationSound(named: UNNotificationSoundName("hypeman-x-reminder.caf")))
-        #expect(requests.last?.content.sound == UNNotificationSound(named: UNNotificationSoundName("hypeman-x-nag.caf")))
+        #expect(requests[2].content.sound == UNNotificationSound(named: UNNotificationSoundName("hypeman-x-nag.caf")))
+        #expect(requests[3].content.body == "Time to do it.")
+        #expect(requests[3].content.sound == .default)
     }
 
     @Test func onlyWhatIsStillAheadIsScheduled() {
         let goal = goal("Leg day", remindIn: -15 * 60)
 
-        let requests = Reminders.requests(for: [goal], pack: nil, soundName: { _ in nil }, now: now)
+        let requests = Reminders.requests(for: [goal], clip: builtIn, now: now)
 
         #expect(requests.map(\.identifier) == ["\(goal.id.uuidString)-nag-2"])
     }
@@ -50,7 +54,13 @@ struct RemindersTests {
         finished.completedAt = now
         let noReminder = Goal(title: "Whenever", sortIndex: 3)
 
-        #expect(Reminders.requests(for: [started, finished, noReminder], pack: nil, soundName: { _ in nil }, now: now).isEmpty)
+        #expect(Reminders.requests(for: [started, finished, noReminder], clip: builtIn, now: now).isEmpty)
+    }
+
+    /// The built-in voice, from a library with nothing in it.
+    private func builtIn(_ goal: Goal, _ role: ClipRole) -> ResolvedClip {
+        MotivatorLibrary(root: FileManager.default.temporaryDirectory.appending(path: "empty-\(UUID().uuidString)"),
+                         defaultsSuite: "RemindersTests-\(UUID().uuidString)").resolve(role, goalMotivatorID: nil, pro: false)
     }
 
     private func goal(_ title: String, remindIn seconds: TimeInterval) -> Goal {

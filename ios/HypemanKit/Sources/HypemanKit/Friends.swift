@@ -7,7 +7,7 @@ import OSLog
 @MainActor
 @Observable
 public final class Friends {
-    public static let shared = Friends(account: .shared, api: .shared, saved: .shared)
+    public static let shared = Friends(account: .shared, api: .shared, library: .shared)
 
     public private(set) var me: Me?
     public private(set) var friends: [User] = []
@@ -16,14 +16,14 @@ public final class Friends {
 
     private let account: Account
     private let api: HypemanAPI
-    private let saved: SavedYells
+    private let library: MotivatorLibrary
     @ObservationIgnored private var inboxCursor: String?
     private let log = Logger(subsystem: "com.hypeman.app", category: "Friends")
 
-    public init(account: Account, api: HypemanAPI, saved: SavedYells) {
+    public init(account: Account, api: HypemanAPI, library: MotivatorLibrary) {
         self.account = account
         self.api = api
-        self.saved = saved
+        self.library = library
     }
 
     /// Free yells left this month; nil for Pro, or before the first refresh.
@@ -101,10 +101,11 @@ public final class Friends {
         me?.sendsLeftThisMonth = result.sendsLeftThisMonth
     }
 
-    /// Keeps the yell: marked on the server, and its recording downloaded so it plays offline.
+    /// Keeps the yell: marked on the server, and downloaded into the motivator library, so it plays offline and can yell
+    /// for goals.
     public func save(_ item: InboxItem) async throws {
         try await account.authorized { [api] token in try await api.saveDelivery(item.deliveryId, accessToken: token) }
-        try await saved.add(item)
+        try await library.saveYell(item)
     }
 
     public func hide(_ item: InboxItem) async throws {
@@ -150,59 +151,5 @@ public final class Friends {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let last = URL(string: trimmed).flatMap { $0.scheme == nil ? nil : $0.lastPathComponent } ?? trimmed
         return last.uppercased().filter { $0.isLetter || $0.isNumber }
-    }
-}
-
-/// A friend's yell the user kept, with its recording on the phone.
-public struct SavedYell: Codable, Equatable, Identifiable, Sendable {
-    public let id: UUID
-    public let senderName: String?
-    public let role: ClipRole
-    public let caption: String
-    public let savedAt: Date
-}
-
-/// Saved yells in the App Group container: `Yells/<id>.m4a`, listed in `Yells/saved.json`, newest first. Kept apart from
-/// packs, ready to become motivators.
-public final class SavedYells: Sendable {
-    public static let shared = SavedYells(root: AppGroup.containerURL ?? .applicationSupportDirectory)
-
-    private let root: URL
-    private let session: URLSession
-
-    public init(root: URL, session: URLSession = .shared) {
-        self.root = root
-        self.session = session
-    }
-
-    private var folder: URL { root.appending(path: "Yells", directoryHint: .isDirectory) }
-    private var indexURL: URL { folder.appending(path: "saved.json") }
-
-    public var all: [SavedYell] {
-        guard let data = try? Data(contentsOf: indexURL) else { return [] }
-        return (try? JSONDecoder().decode([SavedYell].self, from: data)) ?? []
-    }
-
-    public func audioURL(for yell: SavedYell) -> URL {
-        folder.appending(path: "\(yell.id.uuidString.lowercased()).m4a")
-    }
-
-    /// Saving the same yell again changes nothing.
-    public func add(_ item: InboxItem, now: Date = .now) async throws {
-        var all = all
-        guard !all.contains(where: { $0.id == item.yellId }) else { return }
-        let yell = SavedYell(id: item.yellId, senderName: item.sender?.displayName, role: item.role, caption: item.caption, savedAt: now)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let (download, _) = try await session.download(from: item.audioUrl)
-        let target = audioURL(for: yell)
-        try? FileManager.default.removeItem(at: target)
-        try FileManager.default.moveItem(at: download, to: target)
-        all.insert(yell, at: 0)
-        try JSONEncoder().encode(all).write(to: indexURL, options: .atomic)
-    }
-
-    public func remove(_ yell: SavedYell) throws {
-        try? FileManager.default.removeItem(at: audioURL(for: yell))
-        try JSONEncoder().encode(all.filter { $0.id != yell.id }).write(to: indexURL, options: .atomic)
     }
 }

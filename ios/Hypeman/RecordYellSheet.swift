@@ -296,15 +296,6 @@ final class ClipPreview {
 }
 
 extension ClipRole {
-    var title: String {
-        switch self {
-        case .start: "Start"
-        case .reminder: "Reminder"
-        case .nag: "Nag"
-        case .congrats: "Congrats"
-        }
-    }
-
     /// From the clip format: when it plays and how it should sound.
     var hint: String {
         switch self {

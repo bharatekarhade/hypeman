@@ -5,8 +5,6 @@ import SwiftUI
 /// The full-screen moment after DO IT: the hype figure, the goal and a running timer until DONE.
 struct DoItView: View {
     let goal: Goal
-    /// Nil for the default pack.
-    let pack: InstalledPack?
     let done: () -> Void
     let close: () -> Void
 
@@ -47,7 +45,7 @@ struct DoItView: View {
     private var stage: some View {
         ZStack(alignment: .bottom) {
             Theme.stage
-            if PackLibrary.shared.videoURL(for: .start) != nil {
+            if yell?.isVideo == true {
                 PlayerLayerView(player: YellPlayer.shared.player)
                     .accessibilityHidden(true)
             } else {
@@ -55,7 +53,7 @@ struct DoItView: View {
                     .frame(maxWidth: 260, maxHeight: 338)
                     .padding(.bottom, 64)
             }
-            Text((pack?.caption(for: .start) ?? "Get up. Do it. Now.").uppercased())
+            Text((yell?.caption ?? "Get up. Do it. Now.").uppercased())
                 .font(Theme.display(34))
                 .lineLimit(3)
                 .minimumScaleFactor(0.5)
@@ -67,7 +65,7 @@ struct DoItView: View {
         }
         .overlay(alignment: .top) {
             HStack {
-                Text(pack?.title ?? "Default pack")
+                Text(yell?.motivatorTitle ?? "Default pack")
                     .lineLimit(1)
                     .font(Theme.text(12, weight: .bold, relativeTo: .caption))
                     .padding(.horizontal, 12)
@@ -89,14 +87,17 @@ struct DoItView: View {
         }
         .clipped()
     }
+
+    /// The START clip YellPlayer is playing: with shuffle, only it knows whose voice was picked.
+    private var yell: ResolvedClip? {
+        YellPlayer.shared.nowPlaying.flatMap { $0.role == .start ? $0 : nil }
+    }
 }
 
 /// The payoff after DONE: the big yellow "Done." and what's next.
 struct DoneView: View {
     let goal: Goal
     let next: Goal?
-    /// Nil for the default pack.
-    let pack: InstalledPack?
     let doNext: (Goal) -> Void
     let close: () -> Void
 
@@ -117,7 +118,7 @@ struct DoneView: View {
                     .font(Theme.display(150))
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
-                Text("“\(pack?.caption(for: .congrats) ?? "That’s what I’m talking about.")”")
+                Text("“\(congrats)”")
                     .font(Theme.text(20, weight: .bold, relativeTo: .title3))
                     .padding(.top, 10)
                     .padding(.bottom, 28)
@@ -171,6 +172,10 @@ struct DoneView: View {
         }
         .background(Theme.background)
         .foregroundStyle(Theme.ink)
+    }
+
+    private var congrats: String {
+        YellPlayer.shared.nowPlaying.flatMap { $0.role == .congrats ? $0.caption : nil } ?? "That’s what I’m talking about."
     }
 
     /// "42 min" from DO IT to DONE, or nil when the goal was completed without being started.

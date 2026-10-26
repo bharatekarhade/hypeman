@@ -19,12 +19,11 @@ struct StartGoalIntent: AudioPlaybackIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         let context = GoalStore.container.mainContext
-        guard let id = UUID(uuidString: goalID),
-              try GoalStore.remaining(in: context).contains(where: { $0.id == id }) else {
+        guard let id = UUID(uuidString: goalID), let goal = try GoalStore.remaining(in: context).first(where: { $0.id == id }) else {
             return .result()
         }
         try GoalStore.start(id, in: context)
-        YellPlayer.shared.play(.start)
+        YellPlayer.shared.play(.start, motivatorID: goal.motivatorID)
         // Starting cancels the nags and starts the Live Activity; let that land before the app can be suspended.
         await GoalStore.synced()
         return .result()
