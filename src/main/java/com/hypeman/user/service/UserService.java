@@ -4,6 +4,7 @@ import com.hypeman.common.ApplicationException;
 import com.hypeman.common.Ids;
 import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.model.User;
+import com.hypeman.user.model.UserBannedEvent;
 import com.hypeman.user.model.UserDeletedEvent;
 import com.hypeman.user.model.UserIdentity;
 import com.hypeman.user.model.UserView;
@@ -39,13 +40,18 @@ public class UserService {
     /**
      * The user behind a verified Apple or Google account, created on first sign-in. Never matched by email. Two first
      * sign-ins racing with the same account get the same user: the loser drops the user it made and takes the winner's.
+     * A banned user can't sign in.
      */
     @Transactional
     public User findOrCreate(IdentityProvider provider, String subject, String email) {
         return identities.findByProviderAndSubject(provider, subject)
                 .map(identity -> {
                     identity.updateEmail(email);
-                    return users.findById(identity.getUserId()).orElseThrow();
+                    User user = users.findById(identity.getUserId()).orElseThrow();
+                    if (user.isBanned()) {
+                        throw banned();
+                    }
+                    return user;
                 })
                 .orElseGet(() -> {
                     User user = users.saveAndFlush(new User());
@@ -58,20 +64,52 @@ public class UserService {
                 });
     }
 
-    /** A signed-in user. An access token can outlive its account by up to 15 minutes, so this checks. */
+    /** A signed-in user. An access token can outlive its account, or its ban, by up to 15 minutes, so this checks. */
     @Transactional(readOnly = true)
     public User get(UUID userId) {
-        return users.findById(userId)
-                .filter(user -> !user.isDeleted())
+        User user = users.findById(userId)
+                .filter(found -> !found.isDeleted())
                 .orElseThrow(() -> new ApplicationException("ACCOUNT_DELETED", "This account was deleted."));
+        if (user.isBanned()) {
+            throw banned();
+        }
+        return user;
     }
 
-    /** Users as others see them, for the ones that still exist; deleted users are left out. */
+    /** Users as others see them, for the ones that still exist; deleted and banned users are left out. */
     @Transactional(readOnly = true)
     public Map<UUID, UserView> views(Collection<UUID> userIds) {
         return users.findAllById(userIds).stream()
-                .filter(user -> !user.isDeleted())
+                .filter(user -> !user.isDeleted() && !user.isBanned())
                 .collect(Collectors.toMap(User::getId, UserView::of));
+    }
+
+    /** For moderators: every one of these users still on record, deleted and banned ones too. */
+    @Transactional(readOnly = true)
+    public Map<UUID, User> all(Collection<UUID> userIds) {
+        return users.findAllById(userIds).stream().collect(Collectors.toMap(User::getId, user -> user));
+    }
+
+    /**
+     * Bans the user (AD-06): they're signed out everywhere, can't sign in again, drop out of friend lists, and their
+     * yells come down. Banning again changes nothing.
+     */
+    @Transactional
+    public User ban(UUID userId) {
+        User user = users.findById(userId).orElseThrow(UserService::notFound);
+        if (!user.isBanned()) {
+            user.ban(clock.instant());
+            events.publishEvent(new UserBannedEvent(userId));
+        }
+        return user;
+    }
+
+    /** They can sign in again. The yells taken down stay down. */
+    @Transactional
+    public User unban(UUID userId) {
+        User user = users.findById(userId).orElseThrow(UserService::notFound);
+        user.unban();
+        return user;
     }
 
     @Transactional
@@ -98,5 +136,13 @@ public class UserService {
         user.markDeleted(clock.instant());
         identities.deleteByUserId(userId);
         events.publishEvent(new UserDeletedEvent(userId));
+    }
+
+    private static ApplicationException banned() {
+        return new ApplicationException("ACCOUNT_BANNED", "This account was banned for breaking Hypeman's rules.");
+    }
+
+    private static ApplicationException notFound() {
+        return new ApplicationException("USER_NOT_FOUND", "There's no such user.");
     }
 }

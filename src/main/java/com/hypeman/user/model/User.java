@@ -22,6 +22,8 @@ public class User {
 
     private Instant deletedAt;
 
+    private Instant bannedAt;
+
     @Column(insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -45,6 +47,14 @@ public class User {
         return deletedAt != null;
     }
 
+    public boolean isBanned() {
+        return bannedAt != null;
+    }
+
+    public Instant getBannedAt() {
+        return bannedAt;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -60,6 +70,14 @@ public class User {
 
     public void markDeleted(Instant at) {
         deletedAt = at;
+    }
+
+    public void ban(Instant at) {
+        bannedAt = at;
+    }
+
+    public void unban() {
+        bannedAt = null;
     }
 
     public boolean isProAt(Instant now) {
