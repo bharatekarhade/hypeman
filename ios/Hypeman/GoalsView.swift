@@ -22,6 +22,7 @@ struct GoalsView: View {
     @State private var showFriends = false
     @State private var store = Store.shared
     @State private var reminderGoal: Goal?
+    @State private var quietUntil = QuietMode.until
     /// A tapped notification's goal, waiting for an open sheet to finish closing.
     @State private var pendingStart: UUID?
 
@@ -188,67 +189,81 @@ struct GoalsView: View {
     private var header: some View {
         let doneToday = completedGoals.filter { $0.completedAt.map(Calendar.current.isDateInToday) ?? false }.count
         let total = goals.count + doneToday
-        return HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top) {
                 Text("TODAY")
                     .font(Theme.display(46))
+                    // The voice chip truncates first.
+                    .fixedSize()
                     .accessibilityAddTraits(.isHeader)
+                headerButtons
+            }
+            HStack {
                 Text("\(total) \(total == 1 ? "goal" : "goals") · \(doneToday) done")
                     .font(Theme.text(14, relativeTo: .subheadline))
                     .foregroundStyle(Theme.muted)
-            }
-            Spacer(minLength: 12)
-            Button { showAccount = true } label: {
-                Image(systemName: "person.fill")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(width: 36, height: 36)
-                    .background(Theme.surface, in: Circle())
-                    .overlay(Circle().stroke(Theme.line))
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            .accessibilityLabel("Account")
-            Button { showFriends = true } label: {
-                Image(systemName: "person.2.fill")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(width: 36, height: 36)
-                    .background(Theme.surface, in: Circle())
-                    .overlay(Circle().stroke(Theme.line))
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            .accessibilityLabel("Friends")
-            Button { showLock = true } label: {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(width: 36, height: 36)
-                    .background(Theme.surface, in: Circle())
-                    .overlay(Circle().stroke(Theme.line))
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            .accessibilityLabel("Lock apps")
-            Button { showPacks = true } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "megaphone.fill")
-                        .font(.system(size: 12, weight: .bold))
-                    Text(voiceTitle)
-                        .font(Theme.text(13, weight: .bold, relativeTo: .caption))
-                        .lineLimit(1)
+                Spacer(minLength: 12)
+                QuietMenu(until: quietUntil) { until in
+                    QuietMode.set(until, in: context)
+                    quietUntil = QuietMode.until
                 }
-                .padding(.horizontal, 12)
-                .frame(minHeight: 36)
-                .background(Theme.surface, in: Capsule())
-                .overlay(Capsule().stroke(Theme.line))
-                .frame(minHeight: 44)
             }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            .accessibilityLabel("Voices, using \(voiceTitle)")
         }
+    }
+
+    @ViewBuilder
+    private var headerButtons: some View {
+        Spacer(minLength: 12)
+        Button { showAccount = true } label: {
+            Image(systemName: "person.fill")
+                .font(.system(size: 13, weight: .bold))
+                .frame(width: 36, height: 36)
+                .background(Theme.surface, in: Circle())
+                .overlay(Circle().stroke(Theme.line))
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 8)
+        .accessibilityLabel("Account")
+        Button { showFriends = true } label: {
+            Image(systemName: "person.2.fill")
+                .font(.system(size: 13, weight: .bold))
+                .frame(width: 36, height: 36)
+                .background(Theme.surface, in: Circle())
+                .overlay(Circle().stroke(Theme.line))
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 8)
+        .accessibilityLabel("Friends")
+        Button { showLock = true } label: {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 13, weight: .bold))
+                .frame(width: 36, height: 36)
+                .background(Theme.surface, in: Circle())
+                .overlay(Circle().stroke(Theme.line))
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 8)
+        .accessibilityLabel("Lock apps")
+        Button { showPacks = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "megaphone.fill")
+                    .font(.system(size: 12, weight: .bold))
+                Text(voiceTitle)
+                    .font(Theme.text(13, weight: .bold, relativeTo: .caption))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 36)
+            .background(Theme.surface, in: Capsule())
+            .overlay(Capsule().stroke(Theme.line))
+            .frame(minHeight: 44)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 8)
+        .accessibilityLabel("Voices, using \(voiceTitle)")
     }
 
     private var addBar: some View {
