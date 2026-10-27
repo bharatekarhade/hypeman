@@ -14,6 +14,8 @@ struct NextGoalEntry: TimelineEntry {
     let date: Date
     let goal: NextGoal?
     let remaining: Int
+    /// Quiet mode is on: DO IT starts the goal without a yell.
+    var quiet = false
 }
 
 struct NextGoalProvider: TimelineProvider {
@@ -26,14 +28,15 @@ struct NextGoalProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<NextGoalEntry>) -> Void) {
-        // The app and the intents reload timelines on every change, so no refresh schedule is needed.
-        completion(Timeline(entries: [currentEntry()], policy: .never))
+        // The app and the intents reload timelines on every change; the only change nobody makes is quiet mode running out.
+        let quietUntil = QuietMode.until
+        completion(Timeline(entries: [currentEntry()], policy: quietUntil.map { $0 < .distantFuture ? .after($0) : .never } ?? .never))
     }
 
     private func currentEntry() -> NextGoalEntry {
         let goals = (try? GoalStore.remaining(in: ModelContext(GoalStore.container))) ?? []
         let next = goals.first.map { NextGoalEntry.NextGoal(id: $0.id, title: $0.title, startedAt: $0.startedAt) }
-        return NextGoalEntry(date: .now, goal: next, remaining: goals.count)
+        return NextGoalEntry(date: .now, goal: next, remaining: goals.count, quiet: QuietMode.isOn())
     }
 }
 
@@ -79,6 +82,8 @@ struct NextGoalView: View {
                         .fill(Theme.accent)
                         .frame(width: 28, height: 28)
                     SectionLabel("NEXT", size: 11)
+                    Spacer(minLength: 0)
+                    quietBadge
                 }
                 Spacer(minLength: 4)
                 Text(goal.title)
@@ -100,7 +105,11 @@ struct NextGoalView: View {
                 .background(Theme.thumb, in: RoundedRectangle(cornerRadius: 12))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             VStack(alignment: .leading, spacing: 4) {
-                SectionLabel(header(for: goal), size: 11)
+                HStack(spacing: 6) {
+                    SectionLabel(header(for: goal), size: 11)
+                    Spacer(minLength: 0)
+                    quietBadge
+                }
                 Text(goal.title)
                     .font(Theme.text(19, weight: .bold))
                     .lineLimit(2)
@@ -146,6 +155,16 @@ struct NextGoalView: View {
                 .font(Theme.text(13, weight: .bold))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var quietBadge: some View {
+        if entry.quiet {
+            Image(systemName: "bell.slash.fill")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Theme.muted)
+                .accessibilityLabel("Quiet mode on")
+        }
     }
 
     private func doItButton(_ goal: NextGoalEntry.NextGoal, height: CGFloat) -> some View {

@@ -3,6 +3,7 @@ import Foundation
 import HypemanKit
 
 /// DO IT on the widget. Audio intents run in the app's process, which can play the yell without opening the app.
+/// Quiet mode skips the yell.
 struct StartGoalIntent: AudioPlaybackIntent {
     static let title: LocalizedStringResource = "DO IT"
     static let isDiscoverable = false
@@ -23,7 +24,10 @@ struct StartGoalIntent: AudioPlaybackIntent {
             return .result()
         }
         try GoalStore.start(id, in: context)
-        YellPlayer.shared.play(.start, motivatorID: goal.motivatorID)
+        // Quiet mode starts the goal without the yell (WG-06).
+        if !QuietMode.isOn() {
+            YellPlayer.shared.play(.start, motivatorID: goal.motivatorID)
+        }
         // Starting cancels the nags and starts the Live Activity; let that land before the app can be suspended.
         await GoalStore.synced()
         return .result()
