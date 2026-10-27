@@ -39,6 +39,27 @@ struct RemindersTests {
         #expect(requests[3].content.sound == .default)
     }
 
+    @Test func quietModeSilencesWhatFiresBeforeItEnds() {
+        let goal = goal("Leg day", remindIn: 60)
+
+        let requests = Reminders.requests(for: [goal], clip: builtIn, now: now, quietUntil: now.addingTimeInterval(20 * 60))
+
+        #expect(requests.map { $0.content.sound } == [nil, nil, .default])
+        #expect(requests.map(\.content.body) == ["Time to do it.", "Still not started. Get up.", "Still not started. Get up."])
+    }
+
+    @Test func untilMorningMeansTheNextEightOClock() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Europe/London"))
+        let lateEvening = try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: 26, hour: 22, minute: 30)))
+        let earlyMorning = try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 6)))
+        let eightSharp = try #require(calendar.date(from: DateComponents(year: 2026, month: 10, day: 27, hour: 8)))
+
+        #expect(QuietMode.nextMorning(after: lateEvening, calendar: calendar) == eightSharp)
+        #expect(QuietMode.nextMorning(after: earlyMorning, calendar: calendar) == eightSharp)
+        #expect(QuietMode.nextMorning(after: eightSharp, calendar: calendar) == eightSharp.addingTimeInterval(24 * 60 * 60))
+    }
+
     @Test func onlyWhatIsStillAheadIsScheduled() {
         let goal = goal("Leg day", remindIn: -15 * 60)
 

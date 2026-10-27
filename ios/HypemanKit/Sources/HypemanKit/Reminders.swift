@@ -6,7 +6,7 @@ import UserNotifications
 
 /// Local notifications for goals with a reminder time: the goal's motivator's REMINDER at that time, then its NAG twice
 /// while the goal still isn't started. Rebuilt from the goal store after every change, so they can't drift from the goals. Each one has a
-/// Snooze button; tapping it starts the goal.
+/// Snooze button; tapping it starts the goal. The ones quiet mode covers come without sound (WG-06).
 public enum Reminders {
     /// After the reminder, how long until each nag.
     public static let nagDelays: [TimeInterval] = [10 * 60, 30 * 60]
@@ -48,7 +48,7 @@ public enum Reminders {
         let pro = ProAccess.isActive()
         let requests = Requests(all: requests(for: goals, clip: { goal, role in
             library.resolve(role, goalMotivatorID: goal.motivatorID, pro: pro)
-        }, now: .now))
+        }, now: .now, quietUntil: QuietMode.until))
         let waiting = Set(goals.filter { $0.startedAt == nil }.map(\.id.uuidString))
         latest.withLock { latest in
             latest = Task { [previous = latest] in
@@ -86,36 +86,42 @@ public enum Reminders {
         center.removeDeliveredNotifications(withIdentifiers: stale)
     }
 
-    /// The notifications for unfinished, unstarted goals whose reminder is still ahead, grouped by goal.
-    static func requests(for goals: [Goal], clip: (Goal, ClipRole) -> ResolvedClip, now: Date) -> [UNNotificationRequest] {
+    /// The notifications for unfinished, unstarted goals whose reminder is still ahead, grouped by goal. Those firing
+    /// before `quietUntil` are silent.
+    static func requests(for goals: [Goal], clip: (Goal, ClipRole) -> ResolvedClip, now: Date,
+                         quietUntil: Date? = nil) -> [UNNotificationRequest] {
         goals.filter { $0.completedAt == nil && $0.startedAt == nil }.flatMap { goal -> [UNNotificationRequest] in
             guard let reminderAt = goal.reminderAt else { return [] }
             let reminderClip = clip(goal, .reminder)
             let nagClip = clip(goal, .nag)
             let reminder = request(goal, role: .reminder, at: reminderAt, id: "reminder",
-                                   body: reminderClip.caption, sound: reminderClip.soundName, now: now)
+                                   body: reminderClip.caption, sound: reminderClip.soundName, now: now, quietUntil: quietUntil)
             let nags = nagDelays.enumerated().map { index, delay in
                 request(goal, role: .nag, at: reminderAt.addingTimeInterval(delay), id: "nag-\(index + 1)",
-                        body: nagClip.caption, sound: nagClip.soundName, now: now)
+                        body: nagClip.caption, sound: nagClip.soundName, now: now, quietUntil: quietUntil)
             }
             return ([reminder] + nags).compactMap { $0 }
         }
     }
 
     private static func request(_ goal: Goal, role: ClipRole, at date: Date, id: String, body: String, sound: String?,
-                                now: Date) -> UNNotificationRequest? {
+                                now: Date, quietUntil: Date?) -> UNNotificationRequest? {
         guard date > now else { return nil }
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        let quiet = quietUntil.map { date < $0 } ?? false
         return UNNotificationRequest(identifier: "\(goal.id.uuidString)-\(id)",
-                                     content: content(goalID: goal.id, title: goal.title, role: role, body: body, sound: sound),
+                                     content: content(goalID: goal.id, title: goal.title, role: role, body: body, sound: sound,
+                                                      silent: quiet),
                                      trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
     }
 
-    private static func content(goalID: UUID, title: String, role: ClipRole, body: String, sound: String?) -> UNNotificationContent {
+    /// @param sound the motivator's sound, or nil for the system's
+    private static func content(goalID: UUID, title: String, role: ClipRole, body: String, sound: String?,
+                                silent: Bool = false) -> UNNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = sound.map { UNNotificationSound(named: UNNotificationSoundName($0)) } ?? .default
+        content.sound = silent ? nil : sound.map { UNNotificationSound(named: UNNotificationSoundName($0)) } ?? .default
         content.threadIdentifier = goalID.uuidString
         content.categoryIdentifier = category
         content.userInfo = ["goalID": goalID.uuidString, "role": role.rawValue]
