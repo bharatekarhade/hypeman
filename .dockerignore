@@ -4,6 +4,8 @@
 ios
 target
 HELP.md
+README.md
 compose.yaml
 Dockerfile
 .env
+.env.example
