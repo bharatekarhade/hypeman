@@ -32,3 +32,8 @@ The tests use Testcontainers, so Docker has to be running.
 ### Migrations
 
 Flyway migrations live in `src/main/resources/db/migration`.
+
+## iOS
+
+Open `ios/Hypeman.xcodeproj` in Xcode. Shared code is in the `ios/HypemanKit` Swift package, and
+`ios/Hypeman.storekit` is the StoreKit configuration file for testing purchases.
