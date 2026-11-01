@@ -4,9 +4,6 @@ import com.hypeman.admin.model.AuditEntry;
 import com.hypeman.admin.service.AuditLog;
 import com.hypeman.user.model.User;
 import com.hypeman.user.service.UserService;
-import com.hypeman.yell.service.ReportService;
-import com.hypeman.yell.service.ReportService.QueueItem;
-import com.hypeman.yell.service.ReportService.Resolution;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -25,41 +22,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Moderation (AD-06): reported friend yells wait in a queue; the admin takes each down or dismisses its reports, and can
- * ban the sender. Behind the admin token (see SecurityConfig), and every action goes in the audit log.
+ * Moderation (AD-06): the admin can ban and unban users, and read the audit log. Behind the admin token (see
+ * SecurityConfig), and every action goes in the audit log.
  */
 @RestController
 @RequestMapping("/v1/admin")
 @Validated
 class AdminModerationController {
 
-    private final ReportService reports;
     private final UserService users;
     private final AuditLog audit;
 
-    AdminModerationController(ReportService reports, UserService users, AuditLog audit) {
-        this.reports = reports;
+    AdminModerationController(UserService users, AuditLog audit) {
         this.users = users;
         this.audit = audit;
-    }
-
-    @GetMapping("/reports")
-    QueueResponse queue(@RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit) {
-        return new QueueResponse(reports.queue(limit));
-    }
-
-    @PostMapping("/yells/{yellId}/take-down")
-    Resolution takeDown(@PathVariable UUID yellId, @Valid @RequestBody(required = false) Note body) {
-        Resolution resolution = reports.takeDown(yellId);
-        audit.record("yell.take_down", "yell:" + yellId, Note.text(body));
-        return resolution;
-    }
-
-    @PostMapping("/yells/{yellId}/dismiss")
-    Resolution dismiss(@PathVariable UUID yellId, @Valid @RequestBody(required = false) Note body) {
-        Resolution resolution = reports.dismiss(yellId);
-        audit.record("reports.dismiss", "yell:" + yellId, Note.text(body));
-        return resolution;
     }
 
     @PostMapping("/users/{userId}/ban")
@@ -79,9 +55,6 @@ class AdminModerationController {
     @GetMapping("/audit")
     AuditResponse audit(@RequestParam(defaultValue = "100") @Min(1) @Max(500) int limit) {
         return new AuditResponse(audit.recent(limit).stream().map(AuditView::of).toList());
-    }
-
-    record QueueResponse(List<QueueItem> items) {
     }
 
     /** @param note why, for the audit log */
