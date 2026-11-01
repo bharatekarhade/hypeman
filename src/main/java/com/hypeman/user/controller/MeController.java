@@ -4,7 +4,6 @@ import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.model.User;
 import com.hypeman.user.model.UserView;
 import com.hypeman.user.service.UserService;
-import com.hypeman.yell.service.YellService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -26,11 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 class MeController {
 
     private final UserService users;
-    private final YellService yells;
 
-    MeController(UserService users, YellService yells) {
+    MeController(UserService users) {
         this.users = users;
-        this.yells = yells;
     }
 
     @GetMapping
@@ -40,10 +37,9 @@ class MeController {
         List<IdentityView> identities = users.identities(userId).stream()
                 .map(identity -> new IdentityView(identity.getProvider(), identity.getEmail()))
                 .toList();
-        return new MeResponse(UserView.of(user), identities, user.getProUntil(), yells.sendsLeft(userId));
+        return new MeResponse(UserView.of(user), identities, user.getProUntil());
     }
 
-    /** The name friends see. */
     @PatchMapping
     UserView update(@AuthenticationPrincipal Jwt token, @Valid @RequestBody UpdateRequest body) {
         return UserView.of(users.rename(UUID.fromString(token.getSubject()), body.displayName()));
@@ -63,8 +59,7 @@ class MeController {
     record DeleteRequest(String appleAuthorizationCode) {
     }
 
-    /** @param sendsLeftThisMonth free friend yells left this month; null for Pro, which has no cap */
-    record MeResponse(UserView user, List<IdentityView> identities, Instant proUntil, Integer sendsLeftThisMonth) {
+    record MeResponse(UserView user, List<IdentityView> identities, Instant proUntil) {
     }
 
     record UpdateRequest(@NotBlank @Size(max = 40) String displayName) {
