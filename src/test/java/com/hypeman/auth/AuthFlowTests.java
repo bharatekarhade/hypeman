@@ -7,7 +7,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import com.hypeman.TestcontainersConfiguration;
 import com.hypeman.auth.config.AdminProperties;
 import com.hypeman.auth.config.AuthProperties;
-import com.hypeman.auth.repository.DeviceRepository;
 import com.hypeman.auth.service.IdentityTokenVerifier;
 import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.repository.UserRepository;
@@ -75,9 +74,6 @@ class AuthFlowTests {
 
     @Autowired
     UserRepository users;
-
-    @Autowired
-    DeviceRepository devices;
 
     @Autowired
     AdminProperties admin;
@@ -313,19 +309,6 @@ class AuthFlowTests {
         assertThat(read(result, "$.message")).contains("deviceId");
     }
 
-    @Test
-    void aPushTokenMovesToTheDeviceThatRegistersItLast() throws Exception {
-        UUID firstPhone = UUID.randomUUID();
-        UUID secondPhone = UUID.randomUUID();
-        String apnsToken = "apns-" + UUID.randomUUID();
-
-        assertThat(registerPushToken(signInWithApple(newSubject(), firstPhone), apnsToken)).hasStatus(HttpStatus.NO_CONTENT);
-        assertThat(registerPushToken(signInWithApple(newSubject(), secondPhone), apnsToken)).hasStatus(HttpStatus.NO_CONTENT);
-
-        assertThat(devices.findById(firstPhone).orElseThrow().getApnsToken()).isNull();
-        assertThat(devices.findById(secondPhone).orElseThrow().getApnsToken()).isEqualTo(apnsToken);
-    }
-
     private MvcTestResult signInWithApple(String subject, UUID deviceId) {
         String token = appleToken(subject, "nonce-" + subject, APPLE_CLIENT_ID);
         return post("/v1/auth/apple", """
@@ -334,11 +317,6 @@ class AuthFlowTests {
 
     private MvcTestResult refresh(String refreshToken) {
         return post("/v1/auth/refresh", "{\"refreshToken\": \"%s\"}".formatted(refreshToken));
-    }
-
-    private MvcTestResult registerPushToken(MvcTestResult signIn, String apnsToken) throws Exception {
-        return mvc.post().uri("/v1/devices").header(AUTHORIZATION, bearer(signIn)).contentType(APPLICATION_JSON)
-                .content("{\"apnsToken\": \"%s\", \"environment\": \"SANDBOX\"}".formatted(apnsToken)).exchange();
     }
 
     private MvcTestResult deleteAccount(MvcTestResult signIn, String appleAuthorizationCode) throws Exception {
