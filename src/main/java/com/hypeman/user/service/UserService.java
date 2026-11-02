@@ -7,15 +7,11 @@ import com.hypeman.user.model.User;
 import com.hypeman.user.model.UserBannedEvent;
 import com.hypeman.user.model.UserDeletedEvent;
 import com.hypeman.user.model.UserIdentity;
-import com.hypeman.user.model.UserView;
 import com.hypeman.user.repository.UserIdentityRepository;
 import com.hypeman.user.repository.UserRepository;
 import java.time.Clock;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,24 +72,7 @@ public class UserService {
         return user;
     }
 
-    /** Users as others see them, for the ones that still exist; deleted and banned users are left out. */
-    @Transactional(readOnly = true)
-    public Map<UUID, UserView> views(Collection<UUID> userIds) {
-        return users.findAllById(userIds).stream()
-                .filter(user -> !user.isDeleted() && !user.isBanned())
-                .collect(Collectors.toMap(User::getId, UserView::of));
-    }
-
-    /** For moderators: every one of these users still on record, deleted and banned ones too. */
-    @Transactional(readOnly = true)
-    public Map<UUID, User> all(Collection<UUID> userIds) {
-        return users.findAllById(userIds).stream().collect(Collectors.toMap(User::getId, user -> user));
-    }
-
-    /**
-     * Bans the user (AD-06): they're signed out everywhere, can't sign in again, drop out of friend lists, and their
-     * yells come down. Banning again changes nothing.
-     */
+    /** Bans the user (AD-06): they're signed out everywhere and can't sign in again. Banning again changes nothing. */
     @Transactional
     public User ban(UUID userId) {
         User user = users.findById(userId).orElseThrow(UserService::notFound);
@@ -104,7 +83,7 @@ public class UserService {
         return user;
     }
 
-    /** They can sign in again. The yells taken down stay down. */
+    /** They can sign in again. */
     @Transactional
     public User unban(UUID userId) {
         User user = users.findById(userId).orElseThrow(UserService::notFound);

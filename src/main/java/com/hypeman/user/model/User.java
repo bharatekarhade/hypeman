@@ -63,7 +63,6 @@ public class User {
         return updatedAt;
     }
 
-    /** The name friends see. */
     public void rename(String displayName) {
         this.displayName = displayName;
     }
