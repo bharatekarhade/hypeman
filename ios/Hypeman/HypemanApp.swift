@@ -6,7 +6,6 @@ import UserNotifications
 @main
 struct HypemanApp: App {
     @Environment(\.scenePhase) private var scenePhase
-    @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     init() {
         Theme.registerFonts()
@@ -30,10 +29,7 @@ struct HypemanApp: App {
                 LiveActivities.sync(in: GoalStore.container.mainContext)
                 // Lowers the lock if Screen Time permission was revoked in Settings meanwhile.
                 AppLock.sync(in: GoalStore.container.mainContext)
-                Task {
-                    await Account.shared.checkAppleCredential()
-                    await PushRegistration.registerIfAllowed()
-                }
+                Task { await Account.shared.checkAppleCredential() }
             }
         }
     }
@@ -53,10 +49,6 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate, S
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let userInfo = response.notification.request.content.userInfo
-        if userInfo["yellId"] != nil {
-            await MainActor.run { NotificationRouter.shared.openFriends = true }
-            return
-        }
         guard let goalID = Reminders.goalID(of: userInfo) else { return }
         let action = response.actionIdentifier
         await MainActor.run {
@@ -78,24 +70,12 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate, S
     }
 }
 
-/// What a tapped notification asks for, until GoalsView acts on it: DO IT for a goal, or the friends inbox for a yell.
-/// A tap can arrive before the goal list is on screen, so it waits here.
+/// What a tapped notification asks for, until GoalsView acts on it: DO IT for a goal. A tap can arrive before the goal
+/// list is on screen, so it waits here.
 @MainActor
 @Observable
 final class NotificationRouter {
     static let shared = NotificationRouter()
 
     var goalToStart: UUID?
-    var openFriends = false
-}
-
-/// Hands the push token to the server, so friends' yells reach this phone.
-final class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        Task { await Friends.shared.registerPushToken(deviceToken) }
-    }
-
-    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        Logger(subsystem: "com.hypeman.app", category: "AppDelegate").error("No push token: \(error)")
-    }
 }
