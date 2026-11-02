@@ -4,7 +4,7 @@ A Spring Boot API (`src/`) and its iOS app (`ios/`).
 
 ## Server
 
-You need JDK 25 and Docker. Processing uploaded clips and yells also needs `ffmpeg` and `ffprobe` on your PATH.
+You need JDK 25 and Docker. Processing uploaded pack clips also needs `ffmpeg` and `ffprobe` on your PATH.
 
 ```sh
 cp .env.example .env    # then fill in the values
