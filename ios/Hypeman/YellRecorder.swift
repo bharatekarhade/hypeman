@@ -98,10 +98,10 @@ extension ClipRole {
     /// From the clip format: when it plays and how it should sound.
     var hint: String {
         switch self {
-        case .start: "Plays when they hit DO IT. Punchy: “Get up. Do it. Now.”"
+        case .start: "Plays when you hit DO IT. Punchy: “Get up. Do it. Now.”"
         case .reminder: "Plays at the goal’s reminder time. Firm: “It’s time. You said you’d do this.”"
-        case .nag: "Plays when they ignore a reminder. Angrier: “You snoozed again? Really?”"
-        case .congrats: "Plays when they finish. Celebrate."
+        case .nag: "Plays when you ignore a reminder. Angrier: “You snoozed again? Really?”"
+        case .congrats: "Plays when you finish. Celebrate."
         }
     }
 }
