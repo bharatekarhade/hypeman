@@ -165,7 +165,7 @@ public extension APIError {
 
     /// The server ended the session: the user has to sign in again, or, banned, can't.
     var endsSession: Bool {
-        ["INVALID_REFRESH_TOKEN", "REFRESH_TOKEN_REUSED", "DEVICE_SIGNED_OUT", "ACCOUNT_DELETED", "ACCOUNT_BANNED"].contains(code)
+        ["INVALID_REFRESH_TOKEN", "REFRESH_TOKEN_REUSED", "ACCOUNT_DELETED", "ACCOUNT_BANNED"].contains(code)
     }
 }
 

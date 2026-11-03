@@ -5,7 +5,7 @@
 	<key>HypemanAPIBaseURL</key>
 	<string>http://localhost:8080</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Hypeman records the yells you send to friends.</string>
+	<string>Hypeman records your own voice to yell at you.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
