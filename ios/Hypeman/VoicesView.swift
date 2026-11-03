@@ -328,7 +328,6 @@ struct VoiceRow: View {
         case .builtIn: "Hypeman’s own voice. Always on your phone."
         case .pack: "Pack · all four moments"
         case .recording: "Your recording · " + voice.clips.map(\.role.title).joined(separator: ", ")
-        case .yell: voice.subtitle ?? "Saved yell"
         }
     }
 

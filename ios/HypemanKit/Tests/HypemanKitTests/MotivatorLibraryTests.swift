@@ -147,21 +147,6 @@ struct MotivatorLibraryTests {
         #expect(library.resolve(.start, goalMotivatorID: nil, pro: false) { $0.last }.motivatorID == Motivator.builtInID)
     }
 
-    @Test func aSavedYellIsAOneClipVoice() async throws {
-        let audio = try recording()
-        let item = InboxItem(deliveryId: UUID(), yellId: UUID(), sender: User(id: UUID(), displayName: "Sam"), role: .nag,
-                             caption: "Up!", durationMs: 1000, audioUrl: audio, videoUrl: nil, savedAt: nil, receivedAt: .now)
-
-        let voice = try await library.saveYell(item, session: .shared)
-        try await library.saveYell(item, session: .shared)
-        library.defaultID = voice.id
-
-        #expect(library.all.filter { $0.kind == .yell }.map(\.id) == [voice.id])
-        #expect(voice.subtitle == "Sam · Nag")
-        #expect(library.resolve(.nag, goalMotivatorID: nil, pro: false).soundName != nil)
-        #expect(library.resolve(.start, goalMotivatorID: nil, pro: false).motivatorID == Motivator.builtInID, "MV-04")
-    }
-
     @Test func theOldActivePackMovesIntoTheLibrary() throws {
         let packID = UUID()
         let legacy = root.appending(path: "ActivePack")

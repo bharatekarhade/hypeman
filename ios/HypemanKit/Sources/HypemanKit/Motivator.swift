@@ -1,21 +1,19 @@
 import AVFoundation
 import Foundation
 
-/// A voice that yells: up to four clips, one per role (MV-01). The built-in default pack, a pack from the store, the
-/// user's own recording, or a friend's yell they saved.
+/// A voice that yells: up to four clips, one per role (MV-01). The built-in default pack, a pack from the store, or the
+/// user's own recording.
 public struct Motivator: Codable, Identifiable, Equatable, Sendable {
     public enum Kind: String, Codable, Sendable {
-        case builtIn, pack, recording, yell
+        case builtIn, pack, recording
     }
 
     public static let builtInID = "default"
 
-    /// "default", "pack:<uuid>", "mine:<uuid>" or "yell:<uuid>": what a goal stores as its motivatorID.
+    /// "default", "pack:<uuid>" or "mine:<uuid>": what a goal stores as its motivatorID.
     public let id: String
     public let kind: Kind
     public let title: String
-    /// Who it's from, for a saved yell.
-    public var subtitle: String?
     public let clips: [Clip]
 
     public struct Clip: Codable, Equatable, Sendable {
@@ -87,7 +85,7 @@ public final class MotivatorLibrary: Sendable {
 
     // MARK: Reading
 
-    /// The built-in pack first, then packs, the user's recordings and saved yells, each newest first.
+    /// The built-in pack first, then packs and the user's recordings, each newest first.
     public var all: [Motivator] {
         let folders = (try? FileManager.default.contentsOfDirectory(at: foldersURL, includingPropertiesForKeys: [.creationDateKey])) ?? []
         let loaded = folders
@@ -99,7 +97,7 @@ public final class MotivatorLibrary: Sendable {
             }
             .sorted { $0.1 > $1.1 }
             .map(\.0)
-        let order: [Motivator.Kind] = [.pack, .recording, .yell]
+        let order: [Motivator.Kind] = [.pack, .recording]
         return [Motivator.builtIn] + order.flatMap { kind in loaded.filter { $0.kind == kind } }
     }
 
@@ -188,24 +186,6 @@ public final class MotivatorLibrary: Sendable {
             clips.append(Motivator.Clip(role: item.role, caption: item.caption, fileName: fileName, soundName: soundName))
         }
         let motivator = Motivator(id: id, kind: .pack, title: pack.title, clips: clips)
-        try commit(motivator, staging: staging, sounds: sounds)
-        return motivator
-    }
-
-    /// A friend's yell, kept as a one-clip motivator (FD-03). Saving it again changes nothing.
-    @discardableResult
-    public func saveYell(_ item: InboxItem, session: URLSession = .shared) async throws -> Motivator {
-        let id = "yell:\(item.yellId.uuidString.lowercased())"
-        if let saved = load(id) {
-            return saved
-        }
-        let staging = try makeStaging()
-        defer { try? FileManager.default.removeItem(at: staging) }
-        let audio = staging.appending(path: "\(item.role.rawValue.lowercased()).m4a")
-        try await download(item.audioUrl, to: audio, session: session)
-        let (clip, sounds) = try clipWithSound(role: item.role, caption: item.caption, audio: audio, motivatorKey: "yell-\(item.yellId.uuidString.lowercased())")
-        let motivator = Motivator(id: id, kind: .yell, title: "“\(item.caption)”",
-                                  subtitle: "\(item.sender?.displayName ?? "A friend") · \(item.role.title)", clips: [clip])
         try commit(motivator, staging: staging, sounds: sounds)
         return motivator
     }
