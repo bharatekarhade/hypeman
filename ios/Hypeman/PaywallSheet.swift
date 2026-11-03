@@ -36,8 +36,6 @@ struct PaywallSheet: View {
                                 detail: "A running timer and DONE on your Lock Screen and in the Dynamic Island.")
                         Feature(icon: "waveform", title: "Your voices",
                                 detail: "Record your own yells, give each goal its own voice, or shuffle them.")
-                        Feature(icon: "megaphone.fill", title: "Unlimited yells",
-                                detail: "Send friends as many yells as you like. Without Pro it’s 5 a month.")
                     }
                     if let proUntil = store.proUntil, store.isPro {
                         subscribed(until: proUntil)
