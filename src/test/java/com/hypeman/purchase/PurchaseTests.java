@@ -111,7 +111,7 @@ class PurchaseTests {
     void aPaidPackNeedsAPurchase() throws Exception {
         Pack paid = paidPack();
 
-        assertError(mvc.post().uri("/v1/packs/{id}/media", paid.getId()).exchange(), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(mvc.post().uri("/v1/packs/{id}/media", paid.getId()).exchange(), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
         assertError(media(paid, newUser()), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
@@ -142,34 +142,45 @@ class PurchaseTests {
     }
 
     @Test
-    void aPackBoughtSignedOutDownloadsWithItsTransaction() throws Exception {
+    void aPurchaseTheServerHasNotHeardOfYetDownloadsWithItsTransaction() throws Exception {
+        Pack pack = paidPack();
+        UUID user = newUser();
+
+        assertThat(media(pack, user, transaction(pack.getProductId(), user, null, null))).hasStatusOk();
+    }
+
+    @Test
+    void downloadingAPackNeedsSignInEvenWithItsTransaction() throws Exception {
         Pack pack = paidPack();
 
-        assertThat(guestMedia(pack, transaction(pack.getProductId(), null, null, null))).hasStatusOk();
+        assertError(guestMedia(pack, transaction(pack.getProductId(), null, null, null)), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
     }
 
     @Test
     void anotherPacksTransactionDoesNotUnlockAPack() throws Exception {
         Pack pack = paidPack();
+        UUID user = newUser();
 
-        assertError(guestMedia(pack, transaction(paidPack().getProductId(), null, null, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
-        assertError(guestMedia(pack, transaction(PRO, null, Instant.now().plus(30, ChronoUnit.DAYS), null)),
+        assertError(media(pack, user, transaction(paidPack().getProductId(), user, null, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(media(pack, user, transaction(PRO, user, Instant.now().plus(30, ChronoUnit.DAYS), null)),
                 HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test
     void aRefundedTransactionDoesNotUnlockAPack() throws Exception {
         Pack pack = paidPack();
+        UUID user = newUser();
 
-        assertError(guestMedia(pack, transaction(pack.getProductId(), null, null, Instant.now())), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(media(pack, user, transaction(pack.getProductId(), user, null, Instant.now())), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test
     void anUnsignedTransactionClaimingToBeFromAppleDoesNotUnlockAPack() throws Exception {
         Pack pack = paidPack();
-        String forged = jws(transactionClaims(pack.getProductId(), null, null, null, "Sandbox"));
+        UUID user = newUser();
+        String forged = jws(transactionClaims(pack.getProductId(), user, null, null, "Sandbox"));
 
-        assertError(guestMedia(pack, forged), HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_TRANSACTION");
+        assertError(media(pack, user, forged), HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_TRANSACTION");
     }
 
     @Test
@@ -195,7 +206,7 @@ class PurchaseTests {
         notify(transaction(pack.getProductId(), null, null, Instant.now(), originalId));
 
         assertError(media(pack, user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
-        assertError(guestMedia(pack, beforeRefund), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(media(pack, user, beforeRefund), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test
@@ -443,6 +454,11 @@ class PurchaseTests {
 
     private MvcTestResult media(Pack pack, UUID user) {
         return mvc.post().uri("/v1/packs/{id}/media", pack.getId()).header("Authorization", bearer(user)).exchange();
+    }
+
+    private MvcTestResult media(Pack pack, UUID user, String signedTransaction) throws Exception {
+        return mvc.post().uri("/v1/packs/{id}/media", pack.getId()).header("Authorization", bearer(user)).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("signedTransaction", signedTransaction))).exchange();
     }
 
     private MvcTestResult guestMedia(Pack pack, String signedTransaction) throws Exception {

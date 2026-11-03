@@ -173,11 +173,10 @@ public class PackService {
     }
 
     /**
-     * Signed links to a published pack's videos: anyone's for a free pack; for a paid one, only for its buyer. A pack that
-     * isn't published looks like one that doesn't exist.
+     * Signed links to a published pack's videos: any signed-in user's for a free pack; for a paid one, only for its buyer.
+     * A pack that isn't published looks like one that doesn't exist.
      *
-     * @param userId null when nobody is signed in
-     * @param signedTransaction the pack's StoreKit purchase, for a buyer who isn't signed in; may be null
+     * @param signedTransaction the pack's StoreKit purchase, for one the server hasn't recorded yet; may be null
      */
     @Transactional(readOnly = true)
     public List<ClipMedia> media(UUID packId, UUID userId, String signedTransaction) {

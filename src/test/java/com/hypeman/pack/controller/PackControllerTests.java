@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.hypeman.TestcontainersConfiguration;
+import com.hypeman.auth.service.TokenService;
 import com.hypeman.media.service.ClipTranscoder;
 import com.hypeman.media.service.ClipTranscoder.Outputs;
 import com.hypeman.media.service.ClipTranscoder.Probe;
@@ -18,6 +19,8 @@ import com.hypeman.pack.model.ClipStatus;
 import com.hypeman.pack.model.Pack;
 import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.service.PackService;
+import com.hypeman.user.model.User;
+import com.hypeman.user.repository.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import java.net.URI;
 import java.nio.file.Path;
@@ -38,7 +41,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
-/** The public catalog, with no sign-in. S3 and ffmpeg are mocked: a download link is the key on a fake host. */
+/**
+ * The public catalog, with no sign-in, and downloads, which need it. S3 and ffmpeg are mocked: a download link is the key
+ * on a fake host.
+ */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -53,6 +59,12 @@ class PackControllerTests {
 
     @Autowired
     ClipRepository clips;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    TokenService tokens;
 
     @MockitoBean
     MediaStorage media;
@@ -101,7 +113,7 @@ class PackControllerTests {
     void mediaGivesASignedVideoLinkPerClip() throws Exception {
         Pack pack = publishedPack();
 
-        MvcTestResult result = mvc.post().uri("/v1/packs/{id}/media", pack.getId()).exchange();
+        MvcTestResult result = media(pack.getId());
 
         assertThat(result).hasStatusOk();
         assertThat(this.<List<String>>read(result, "$.clips[*].role")).containsExactly("START", "REMINDER", "NAG", "CONGRATS");
@@ -114,15 +126,22 @@ class PackControllerTests {
     }
 
     @Test
+    void mediaForAFreePackNeedsSignIn() throws Exception {
+        Pack pack = publishedPack();
+
+        assertError(mvc.post().uri("/v1/packs/{id}/media", pack.getId()).exchange(), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
+    }
+
+    @Test
     void mediaForADraftPackLooksLikeNoPackAtAll() throws Exception {
         Pack draft = service.createDefaultPack("Draft " + word(), "Not yet", false);
 
-        assertError(mvc.post().uri("/v1/packs/{id}/media", draft.getId()).exchange(), HttpStatus.NOT_FOUND, "PACK_NOT_FOUND");
+        assertError(media(draft.getId()), HttpStatus.NOT_FOUND, "PACK_NOT_FOUND");
     }
 
     @Test
     void mediaForAPackThatDoesNotExistIs404() throws Exception {
-        assertError(mvc.post().uri("/v1/packs/{id}/media", UUID.randomUUID()).exchange(), HttpStatus.NOT_FOUND, "PACK_NOT_FOUND");
+        assertError(media(UUID.randomUUID()), HttpStatus.NOT_FOUND, "PACK_NOT_FOUND");
     }
 
     @Test
@@ -139,6 +158,13 @@ class PackControllerTests {
             await().atMost(Duration.ofSeconds(10)).until(() -> clips.findById(clipId).orElseThrow().getStatus() == ClipStatus.READY);
         }
         return service.publish(pack.getId());
+    }
+
+    /** As a new signed-in user. */
+    private MvcTestResult media(UUID packId) {
+        UUID user = users.save(new User()).getId();
+        String token = tokens.signIn(user, UUID.randomUUID()).accessToken();
+        return mvc.post().uri("/v1/packs/{id}/media", packId).header("Authorization", "Bearer " + token).exchange();
     }
 
     private static String word() {

@@ -33,17 +33,16 @@ class PackController {
     }
 
     /**
-     * POST, not GET: each call signs fresh links. A free pack needs nothing; a paid one needs the buyer's sign-in or, when
-     * they bought it signed out, its signed StoreKit transaction.
+     * POST, not GET: each call signs fresh links. Needs sign-in for every pack, so each download belongs to a user. A
+     * paid one also needs that user's purchase, recorded or proven with its signed StoreKit transaction.
      */
     @PostMapping("/{packId}/media")
     MediaResponse media(@PathVariable UUID packId, @AuthenticationPrincipal Jwt token,
                         @RequestBody(required = false) MediaRequest body) {
-        return new MediaResponse(packs.media(packId, token == null ? null : TokenService.userId(token),
-                body == null ? null : body.signedTransaction()));
+        return new MediaResponse(packs.media(packId, TokenService.userId(token), body == null ? null : body.signedTransaction()));
     }
 
-    /** @param signedTransaction StoreKit's jwsRepresentation of the pack's purchase */
+    /** @param signedTransaction StoreKit's jwsRepresentation of the pack's purchase, if the server may not have it yet */
     record MediaRequest(String signedTransaction) {
     }
 

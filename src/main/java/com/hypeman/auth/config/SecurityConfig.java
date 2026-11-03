@@ -76,7 +76,6 @@ class SecurityConfig {
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers(HttpMethod.POST, "/v1/auth/apple", "/v1/auth/google", "/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/packs").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/v1/packs/*/media").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/app-store/notifications").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/error").permitAll()
                         .anyRequest().authenticated())
