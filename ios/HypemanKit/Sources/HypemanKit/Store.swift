@@ -4,11 +4,11 @@ import OSLog
 import StoreKit
 
 /// Hypeman Pro and single packs through StoreKit 2. Pro is for app features (hard mode, the Live Activity); packs are
-/// always bought one at a time, so every sale is its creator's. Neither needs an account: what this Apple ID owns comes
-/// from StoreKit on the phone, and a pack bought signed out downloads with its signed transaction. When someone is signed
-/// in, purchases carry their user id as the appAccountToken and are reported to the server, so they follow the account;
-/// such a transaction is finished only once the server has it, so one that fails to report comes back through
-/// `Transaction.updates` on the next launch.
+/// always bought one at a time, so every sale is its creator's. Buying, restoring and downloading packs need an account,
+/// so every purchase and download belongs to a user: purchases carry their user id as the appAccountToken and are
+/// reported to the server. A transaction is finished only once the server has it, so one that fails to report comes back
+/// through `Transaction.updates` on the next launch; one that arrives signed out (bought on another device, say) is
+/// reported after the next sign-in.
 @MainActor
 @Observable
 public final class Store {
@@ -106,14 +106,11 @@ public final class Store {
         }
     }
 
-    /// Works signed out. False when the user cancelled or the purchase waits for approval (Ask to Buy); an approved one
-    /// arrives later through `Transaction.updates`.
+    /// Needs sign-in, so the purchase carries the user's id. False when the user cancelled or the purchase waits for
+    /// approval (Ask to Buy); an approved one arrives later through `Transaction.updates`.
     public func buy(_ product: Product) async throws -> Bool {
-        var options: Set<Product.PurchaseOption> = []
-        if let userID = account.session?.user.id {
-            options.insert(.appAccountToken(userID))
-        }
-        switch try await product.purchase(options: options) {
+        guard let userID = account.session?.user.id else { throw APIError.signedOut }
+        switch try await product.purchase(options: [.appAccountToken(userID)]) {
         case .success(let verification):
             guard case .verified = verification else { throw Self.unverified }
             do {
@@ -130,15 +127,12 @@ public final class Store {
         }
     }
 
-    /// Asks the App Store for the user's purchases (it may ask for their Apple ID password), then reports each one when
-    /// someone is signed in.
+    /// Needs sign-in. Asks the App Store for the user's purchases (it may ask for their Apple ID password), then reports
+    /// each one.
     public func restore() async throws {
+        guard account.isSignedIn else { throw APIError.signedOut }
         try await AppStore.sync()
-        if account.isSignedIn {
-            try await reportCurrentEntitlements()
-        } else {
-            await refreshEntitlements()
-        }
+        try await reportCurrentEntitlements()
     }
 
     /// Reports what this Apple ID owns without prompting, e.g. right after signing in on a phone that already bought,
