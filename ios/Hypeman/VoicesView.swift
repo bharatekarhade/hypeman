@@ -5,7 +5,8 @@ import SwiftData
 import SwiftUI
 
 /// Who yells (MV-01 to MV-06): the user's library of voices, the default one goals use, shuffle, recording their own,
-/// and the pack store. Store packs download into the library; paid ones are bought one at a time, signed in or not.
+/// and the pack store. Anyone can browse the store; downloading a pack, buying one or restoring purchases asks for sign-in
+/// first and carries on once it's done. Store packs download into the library; paid ones are bought one at a time.
 struct VoicesView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var store = Store.shared
@@ -19,6 +20,8 @@ struct VoicesView: View {
     @State private var paywall: String?
     @State private var confirmRemove: Motivator?
     @State private var failure: String?
+    @State private var showSignIn = false
+    @State private var afterSignIn: StoreAction?
 
     private let library = MotivatorLibrary.shared
     private let log = Logger(subsystem: "com.hypeman.app", category: "VoicesView")
@@ -108,6 +111,12 @@ struct VoicesView: View {
         .foregroundStyle(Theme.ink)
         .task { await load() }
         .task(id: account.isSignedIn) { await store.refreshEntitlements() }
+        .onChange(of: account.isSignedIn) { _, signedIn in
+            if signedIn && showSignIn {
+                showSignIn = false
+            }
+        }
+        .sheet(isPresented: $showSignIn, onDismiss: resumeAfterSignIn) { AccountSheet() }
         .sheet(isPresented: $showRecorder, onDismiss: reload) { RecordVoiceSheet() }
         .sheet(isPresented: Binding(get: { paywall != nil }, set: { if !$0 { paywall = nil } })) {
             PaywallSheet(headline: paywall ?? "")
@@ -205,6 +214,7 @@ struct VoicesView: View {
             reload()
             return
         }
+        guard signedIn(or: .install(pack)) else { return }
         installing = pack.id
         Task {
             defer { installing = nil }
@@ -221,7 +231,7 @@ struct VoicesView: View {
     }
 
     private func buy(_ product: Product) {
-        guard buying == nil else { return }
+        guard buying == nil, signedIn(or: .buy(product)) else { return }
         buying = product.id
         Task {
             defer { buying = nil }
@@ -235,6 +245,7 @@ struct VoicesView: View {
     }
 
     private func restore() {
+        guard signedIn(or: .restore) else { return }
         buying = "restore"
         Task {
             defer { buying = nil }
@@ -247,6 +258,32 @@ struct VoicesView: View {
                 failure = (error as? APIError)?.message ?? "Couldn’t restore your purchases. Please try again."
             }
         }
+    }
+
+    /// True when signed in. Otherwise asks for sign-in, and `action` runs once the sign-in sheet closes signed in.
+    private func signedIn(or action: StoreAction) -> Bool {
+        if account.isSignedIn { return true }
+        afterSignIn = action
+        showSignIn = true
+        return false
+    }
+
+    private func resumeAfterSignIn() {
+        guard let action = afterSignIn else { return }
+        afterSignIn = nil
+        guard account.isSignedIn else { return }
+        switch action {
+        case .install(let pack): install(pack)
+        case .buy(let product): buy(product)
+        case .restore: restore()
+        }
+    }
+
+    /// What was tapped before sign-in, to carry on with after it.
+    private enum StoreAction {
+        case install(CatalogPack)
+        case buy(Product)
+        case restore
     }
 
     private enum Phase {
