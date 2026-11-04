@@ -167,6 +167,17 @@ class PurchaseTests {
     }
 
     @Test
+    void anotherAccountsTransactionDoesNotUnlockAPack() throws Exception {
+        Pack pack = paidPack();
+        UUID buyer = newUser();
+        String boughtSignedOut = transaction(pack.getProductId(), null, null, null);
+        buy(buyer, boughtSignedOut);
+
+        assertError(media(pack, newUser(), transaction(pack.getProductId(), buyer, null, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(media(pack, newUser(), boughtSignedOut), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+    }
+
+    @Test
     void aRefundedTransactionDoesNotUnlockAPack() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();

@@ -102,23 +102,28 @@ public class PurchaseService {
     }
 
     /**
-     * Whether a paid pack may be downloaded: the signed-in user bought it, or the app proves a purchase of it with Apple's
-     * signed transaction, which is how a pack bought signed out downloads. A refund recorded for that purchase still counts.
+     * Whether the user may download a paid pack: they bought it, or the app proves their purchase of it with Apple's signed
+     * transaction before the server has heard of it. That transaction must not belong to another account, and a refund
+     * recorded for it still counts.
      *
-     * @param userId null when nobody is signed in
      * @param signedTransaction StoreKit's jwsRepresentation of the pack's purchase; null if the app sent none
      */
     @Transactional(readOnly = true)
     public boolean owns(UUID userId, Pack pack, String signedTransaction) {
-        if (userId != null && purchases.existsByUserIdAndPackIdAndRevokedAtIsNull(userId, pack.getId())) {
+        if (purchases.existsByUserIdAndPackIdAndRevokedAtIsNull(userId, pack.getId())) {
             return true;
         }
         if (signedTransaction == null) {
             return false;
         }
         VerifiedTransaction transaction = verifier.verifyTransaction(signedTransaction);
+        if (transaction.appAccountToken() != null && !userId.equals(transaction.appAccountToken())) {
+            return false;
+        }
         return transaction.productId().equals(pack.getProductId()) && transaction.revokedAt() == null
-                && purchases.findByOriginalTransactionId(transaction.originalTransactionId()).map(PackPurchase::isActive).orElse(true);
+                && purchases.findByOriginalTransactionId(transaction.originalTransactionId())
+                        .map(purchase -> purchase.isActive() && purchase.getUserId().equals(userId))
+                        .orElse(true);
     }
 
     /** Who claimed a purchase made signed out, if anyone has. */
