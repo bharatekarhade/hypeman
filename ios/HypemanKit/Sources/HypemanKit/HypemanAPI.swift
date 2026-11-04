@@ -18,10 +18,10 @@ public struct HypemanAPI: Sendable {
         try await send("GET", "v1/packs")
     }
 
-    /// Fresh signed links to a pack's videos. They expire within the hour, so download straight away. A paid pack needs
-    /// the access token of someone who bought it, or the pack's StoreKit transaction (its jwsRepresentation), which is
-    /// how a pack bought signed out downloads.
-    public func media(for packID: UUID, accessToken: String? = nil, signedTransaction: String? = nil) async throws -> [ClipMedia] {
+    /// Fresh signed links to a pack's videos. They expire within the hour, so download straight away. Every pack needs
+    /// sign-in; a paid one also needs the user's purchase, which the pack's StoreKit transaction (its jwsRepresentation)
+    /// proves before the server has recorded it.
+    public func media(for packID: UUID, accessToken: String, signedTransaction: String? = nil) async throws -> [ClipMedia] {
         let response: MediaResponse = try await send("POST", "v1/packs/\(packID.uuidString.lowercased())/media",
                                                      body: signedTransaction.map { ["signedTransaction": $0] }, token: accessToken)
         return response.clips

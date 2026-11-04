@@ -180,7 +180,7 @@ struct MotivatorLibraryTests {
         let api = HypemanAPI(baseURL: URL(string: "https://api.test")!, session: session)
 
         await #expect(throws: APIError(code: "PACK_NOT_PURCHASED", message: "Buy this pack to download it.", requestId: "req-1")) {
-            try await api.media(for: UUID())
+            try await api.media(for: UUID(), accessToken: "token")
         }
     }
 

@@ -94,16 +94,16 @@ public final class Store {
         publishPro()
     }
 
-    /// Signed links to a pack's videos. A paid pack proves its purchase with StoreKit's transaction when this phone has
-    /// one, and otherwise with the user's sign-in.
+    /// Signed links to a pack's videos, for the signed-in user. A paid pack also sends StoreKit's transaction when this
+    /// phone has one, in case the server hasn't recorded the purchase yet.
     public func media(for pack: CatalogPack) async throws -> [ClipMedia] {
-        if pack.isFree {
-            return try await api.media(for: pack.id)
+        var signedTransaction: String?
+        if !pack.isFree, let productID = pack.productId {
+            signedTransaction = await Self.current(productID)?.jwsRepresentation
         }
-        if let productID = pack.productId, let transaction = await Self.current(productID) {
-            return try await api.media(for: pack.id, signedTransaction: transaction.jwsRepresentation)
+        return try await account.authorized { [api] token in
+            try await api.media(for: pack.id, accessToken: token, signedTransaction: signedTransaction)
         }
-        return try await account.authorized { [api] token in try await api.media(for: pack.id, accessToken: token) }
     }
 
     /// Works signed out. False when the user cancelled or the purchase waits for approval (Ask to Buy); an approved one
