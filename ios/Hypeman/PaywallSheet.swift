@@ -4,12 +4,15 @@ import StoreKit
 import SwiftUI
 
 /// Hypeman Pro (PY-01, PY-02): what it unlocks, both plans with the yearly trial, and the disclosures App Review asks
-/// for. Opens from the features it gates (PY-03), and works signed out.
+/// for. Opens from the features it gates (PY-03). Buying or restoring asks for sign-in first and carries on once it's done.
 struct PaywallSheet: View {
     /// The headline, naming the feature that opened it.
     var headline = "Make it impossible to ignore."
     @Environment(\.dismiss) private var dismiss
     @State private var store = Store.shared
+    @State private var account = Account.shared
+    @State private var showSignIn = false
+    @State private var afterSignIn: StoreAction?
     @State private var buying: String?
     @State private var trialEligible = false
     @State private var manageSubscription = false
@@ -55,6 +58,12 @@ struct PaywallSheet: View {
             trialEligible = await yearly?.subscription?.isEligibleForIntroOffer ?? false
         }
         .manageSubscriptionsSheet(isPresented: $manageSubscription)
+        .onChange(of: account.isSignedIn) { _, signedIn in
+            if signedIn && showSignIn {
+                showSignIn = false
+            }
+        }
+        .sheet(isPresented: $showSignIn, onDismiss: resumeAfterSignIn) { AccountSheet() }
         .alert("Something went wrong", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -141,7 +150,7 @@ struct PaywallSheet: View {
     }
 
     private func buy(_ product: Product) {
-        guard buying == nil else { return }
+        guard buying == nil, signedIn(or: .buy(product)) else { return }
         buying = product.id
         Task {
             defer { buying = nil }
@@ -157,6 +166,7 @@ struct PaywallSheet: View {
     }
 
     private func restore() {
+        guard signedIn(or: .restore) else { return }
         buying = "restore"
         Task {
             defer { buying = nil }
@@ -172,6 +182,30 @@ struct PaywallSheet: View {
                 failure = (error as? APIError)?.message ?? "Couldn’t restore your purchases. Please try again."
             }
         }
+    }
+
+    /// True when signed in. Otherwise asks for sign-in, and `action` runs once the sign-in sheet closes signed in.
+    private func signedIn(or action: StoreAction) -> Bool {
+        if account.isSignedIn { return true }
+        afterSignIn = action
+        showSignIn = true
+        return false
+    }
+
+    private func resumeAfterSignIn() {
+        guard let action = afterSignIn else { return }
+        afterSignIn = nil
+        guard account.isSignedIn else { return }
+        switch action {
+        case .buy(let product): buy(product)
+        case .restore: restore()
+        }
+    }
+
+    /// What was tapped before sign-in, to carry on with after it.
+    private enum StoreAction {
+        case buy(Product)
+        case restore
     }
 }
 
