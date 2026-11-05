@@ -19,7 +19,6 @@ struct GoalsView: View {
     @State private var voiceGoal: Goal?
     @State private var showLock = false
     @State private var showAccount = false
-    @State private var store = Store.shared
     @State private var reminderGoal: Goal?
     @State private var quietUntil = QuietMode.until
     /// A tapped notification's goal, waiting for an open sheet to finish closing.
@@ -113,11 +112,6 @@ struct GoalsView: View {
         .onChange(of: NotificationRouter.shared.goalToStart, initial: true) { _, goalID in
             startFromNotification(goalID)
         }
-        .onChange(of: store.isPro) {
-            // Pro starting or ending turns hard mode and the Live Activity on or off (PY-06).
-            AppLock.sync(in: context)
-            LiveActivities.sync(in: context)
-        }
         .fullScreenCover(item: $focus) { focus in
             focusScreen(focus)
         }
@@ -129,20 +123,10 @@ struct GoalsView: View {
             VoicesView()
         }
         .sheet(item: $voiceGoal, onDismiss: startPending) { goal in
-            // A voice per goal is Pro (GL-08).
-            if store.isPro {
-                VoicePickerSheet(goal: goal)
-            } else {
-                PaywallSheet(headline: "Give every goal its own voice.")
-            }
+            VoicePickerSheet(goal: goal)
         }
         .sheet(isPresented: $showLock, onDismiss: startPending) {
-            // Hard mode is Pro (PY-03); buying it here turns the paywall into the app picker.
-            if store.isPro {
-                LockSheet()
-            } else {
-                PaywallSheet(headline: "Lock your apps until you DO IT.")
-            }
+            LockSheet()
         }
         .sheet(isPresented: $showAccount, onDismiss: startPending) {
             AccountSheet()

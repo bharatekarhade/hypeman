@@ -34,11 +34,6 @@ public struct Motivator: Codable, Identifiable, Equatable, Sendable {
         clips.first { $0.role == role }
     }
 
-    /// The user's own recordings are Pro (MV-05); when Pro lapses they stay on the phone but stop yelling (PY-06).
-    public var needsPro: Bool {
-        kind == .recording
-    }
-
     static let builtIn = Motivator(id: builtInID, kind: .builtIn, title: "Default pack", clips: [
         Clip(role: .start, caption: "Get up. Do it. Now.", fileName: "start.m4a"),
         Clip(role: .reminder, caption: "Time to do it.", fileName: "reminder.m4a"),
@@ -111,26 +106,25 @@ public final class MotivatorLibrary: Sendable {
         set { defaults?.set(newValue, forKey: Self.defaultKey) }
     }
 
-    /// A random motivator on each play (MV-06, Pro).
+    /// A random motivator on each play (MV-06).
     public var shuffle: Bool {
         get { defaults?.bool(forKey: Self.shuffleKey) ?? false }
         set { defaults?.set(newValue, forKey: Self.shuffleKey) }
     }
 
-    /// The motivator that yells for a goal: its own (GL-08) with Pro, else the default; with shuffle, any of them. A
-    /// motivator without a clip for the role falls back to the built-in one's (MV-04).
-    public func resolve(_ role: ClipRole, goalMotivatorID: String?, pro: Bool,
+    /// The motivator that yells for a goal: its own (GL-08), else the default; with shuffle, any of them. A motivator
+    /// without a clip for the role falls back to the built-in one's (MV-04).
+    public func resolve(_ role: ClipRole, goalMotivatorID: String?,
                         pick: ([Motivator]) -> Motivator? = { $0.randomElement() }) -> ResolvedClip {
-        let usable = { (motivator: Motivator) in pro || !motivator.needsPro }
         var chosen: Motivator?
-        if pro && shuffle {
-            chosen = pick(all.filter { usable($0) && $0.clip(for: role) != nil })
+        if shuffle {
+            chosen = pick(all.filter { $0.clip(for: role) != nil })
         }
-        if chosen == nil, pro, let id = goalMotivatorID {
-            chosen = motivator(id).flatMap { usable($0) ? $0 : nil }
+        if chosen == nil, let id = goalMotivatorID {
+            chosen = motivator(id)
         }
         if chosen == nil {
-            chosen = motivator(defaultID).flatMap { usable($0) ? $0 : nil }
+            chosen = motivator(defaultID)
         }
         let motivator = chosen.flatMap { $0.clip(for: role) != nil ? $0 : nil } ?? .builtIn
         let clip = motivator.clip(for: role)!

@@ -46,7 +46,7 @@ public enum LiveActivities {
 
     public static func sync(in context: ModelContext) {
         guard isAvailable, let goals = try? GoalStore.remaining(in: context) else { return }
-        let wanted = ProAccess.isActive() ? wanted(from: goals) : [:]
+        let wanted = wanted(from: goals)
         latest.withLock { latest in
             latest = Task { [previous = latest] in
                 await previous?.value

@@ -146,17 +146,13 @@ public struct Me: Decodable, Equatable, Sendable {
 
     public let user: User
     public let identities: [Identity]
-    public let proUntil: Date?
 }
 
 public struct Entitlements: Decodable, Equatable, Sendable {
-    /// When Pro runs out; nil if the user never had it.
-    public let proUntil: Date?
-    /// Packs bought on their own.
+    /// Packs the user bought.
     public let packIds: [UUID]
 
-    public init(proUntil: Date?, packIds: [UUID]) {
-        self.proUntil = proUntil
+    public init(packIds: [UUID]) {
         self.packIds = packIds
     }
 }

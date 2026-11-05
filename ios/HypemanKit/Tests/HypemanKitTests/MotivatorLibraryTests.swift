@@ -21,7 +21,7 @@ struct MotivatorLibraryTests {
     }
 
     @Test func atFirstThereIsOnlyTheBuiltInVoice() {
-        let start = library.resolve(.start, goalMotivatorID: nil, pro: true)
+        let start = library.resolve(.start, goalMotivatorID: nil)
 
         #expect(library.all.map(\.id) == [Motivator.builtInID])
         #expect(library.defaultID == Motivator.builtInID)
@@ -52,13 +52,13 @@ struct MotivatorLibraryTests {
         let voice = try await library.install(pack, media: media(for: pack), session: session)
         library.defaultID = voice.id
 
-        let reminder = try #require(library.resolve(.reminder, goalMotivatorID: nil, pro: false).soundName)
+        let reminder = try #require(library.resolve(.reminder, goalMotivatorID: nil).soundName)
 
         #expect(reminder == "hypeman-\(pack.id.uuidString.lowercased())-reminder.caf")
         #expect(try String(contentsOf: root.appending(path: "Library/Sounds/\(reminder)"), encoding: .utf8) == "alarm-reminder.caf")
-        #expect(library.resolve(.nag, goalMotivatorID: nil, pro: false).soundName != nil)
-        #expect(library.resolve(.start, goalMotivatorID: nil, pro: false).soundName == nil, "only reminders and nags are notifications")
-        #expect(library.resolve(.start, goalMotivatorID: nil, pro: false).isVideo)
+        #expect(library.resolve(.nag, goalMotivatorID: nil).soundName != nil)
+        #expect(library.resolve(.start, goalMotivatorID: nil).soundName == nil, "only reminders and nags are notifications")
+        #expect(library.resolve(.start, goalMotivatorID: nil).isVideo)
     }
 
     @Test func severalPacksStayDownloaded() async throws {
@@ -103,23 +103,22 @@ struct MotivatorLibraryTests {
         #expect(!library.hasPack(pack.id))
     }
 
-    @Test func aGoalsOwnVoiceNeedsPro() async throws {
+    @Test func aGoalUsesItsOwnVoiceWhileItExists() async throws {
         let pack = catalogPack()
         let voice = try await library.install(pack, media: media(for: pack), session: session)
 
-        #expect(library.resolve(.start, goalMotivatorID: voice.id, pro: true).motivatorID == voice.id)
-        #expect(library.resolve(.start, goalMotivatorID: voice.id, pro: false).motivatorID == Motivator.builtInID)
-        #expect(library.resolve(.start, goalMotivatorID: "pack:gone", pro: true).motivatorID == Motivator.builtInID)
+        #expect(library.resolve(.start, goalMotivatorID: voice.id).motivatorID == voice.id)
+        #expect(library.resolve(.start, goalMotivatorID: "pack:gone").motivatorID == Motivator.builtInID)
     }
 
-    @Test func yourOwnRecordingNeedsProAndMakesItsSounds() throws {
+    @Test func yourOwnRecordingMakesItsSounds() throws {
         let voice = try library.saveRecording(title: "Me", clips: [
             (role: .nag, caption: "Move!", audio: try recording()),
             (role: .start, caption: "Go!", audio: try recording()),
         ])
         library.defaultID = voice.id
 
-        let nag = library.resolve(.nag, goalMotivatorID: nil, pro: true)
+        let nag = library.resolve(.nag, goalMotivatorID: nil)
 
         #expect(voice.clips.map(\.role) == [.start, .nag])
         #expect(nag.motivatorID == voice.id)
@@ -127,24 +126,22 @@ struct MotivatorLibraryTests {
         let soundName = try #require(nag.soundName)
         let sound = try AVAudioFile(forReading: root.appending(path: "Library/Sounds/\(soundName)"))
         #expect(sound.fileFormat.streamDescription.pointee.mFormatID == kAudioFormatLinearPCM)
-        #expect(library.resolve(.reminder, goalMotivatorID: nil, pro: true).motivatorID == Motivator.builtInID, "no REMINDER recorded")
-        #expect(library.resolve(.nag, goalMotivatorID: nil, pro: false).motivatorID == Motivator.builtInID, "Pro lapsed")
+        #expect(library.resolve(.reminder, goalMotivatorID: nil).motivatorID == Motivator.builtInID, "no REMINDER recorded")
     }
 
-    @Test func shuffleNeedsProAndPicksFromVoicesWithThatClip() async throws {
+    @Test func shufflePicksFromVoicesWithThatClip() async throws {
         let pack = catalogPack()
         let voice = try await library.install(pack, media: media(for: pack), session: session)
         library.shuffle = true
         var offered: [String] = []
 
-        let picked = library.resolve(.start, goalMotivatorID: nil, pro: true) { voices in
+        let picked = library.resolve(.start, goalMotivatorID: nil) { voices in
             offered = voices.map(\.id)
             return voices.last
         }
 
         #expect(offered == [Motivator.builtInID, voice.id])
         #expect(picked.motivatorID == voice.id)
-        #expect(library.resolve(.start, goalMotivatorID: nil, pro: false) { $0.last }.motivatorID == Motivator.builtInID)
     }
 
     @Test func theOldActivePackMovesIntoTheLibrary() throws {
@@ -160,7 +157,7 @@ struct MotivatorLibraryTests {
 
         #expect(library.defaultID == MotivatorLibrary.packID(packID))
         #expect(!FileManager.default.fileExists(atPath: legacy.path()))
-        let start = library.resolve(.start, goalMotivatorID: nil, pro: false)
+        let start = library.resolve(.start, goalMotivatorID: nil)
         #expect(start.caption == "Go.")
         let url = try #require(start.url)
         #expect(try String(contentsOf: url, encoding: .utf8) == "video")
