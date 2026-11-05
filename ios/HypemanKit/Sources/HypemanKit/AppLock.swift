@@ -42,7 +42,7 @@ public enum AppLock {
     }
 
     public static var isOn: Bool {
-        isAuthorized && !selection.isEmpty && ProAccess.isActive()
+        isAuthorized && !selection.isEmpty
     }
 
     /// Screen Time permission for this device's own user. Throws when the user declines or Screen Time is restricted.
@@ -72,13 +72,8 @@ public enum AppLock {
         }
     }
 
-    /// For the ActivityMonitor extension: a reminder's interval started, so lock if that goal is still waiting. Pro may
-    /// have run out since the app scheduled it.
+    /// For the ActivityMonitor extension: a reminder's interval started, so lock if that goal is still waiting.
     public static func intervalStarted(_ activity: DeviceActivityName) {
-        guard ProAccess.isActive() else {
-            store.clearAllSettings()
-            return
-        }
         let entries = load([Entry].self, entriesKey) ?? []
         if entries.contains(where: { activityName($0.id) == activity }) {
             lock()

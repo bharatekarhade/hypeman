@@ -12,8 +12,6 @@ struct AccountSheet: View {
     @State private var nonce = Nonce()
     @State private var busy = false
     @State private var confirmDelete = false
-    @State private var showPro = false
-    @State private var store = Store.shared
     @State private var failure: String?
 
     private let log = Logger(subsystem: "com.hypeman.app", category: "AccountSheet")
@@ -28,14 +26,13 @@ struct AccountSheet: View {
             } else {
                 signedOut
             }
-            proRow
+            links
         }
         .padding(EdgeInsets(top: 28, leading: 20, bottom: 12, trailing: 20))
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.background)
         .foregroundStyle(Theme.ink)
         .presentationDetents([.medium, .large])
-        .sheet(isPresented: $showPro) { PaywallSheet() }
         .disabled(busy)
         .task(id: account.isSignedIn) { await loadMe() }
         .confirmationDialog("Delete your account?", isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -104,28 +101,16 @@ struct AccountSheet: View {
         }
     }
 
-    /// Pro is the Apple ID's, not the account's, so it's here signed in or out.
-    private var proRow: some View {
-        Button { showPro = true } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("HYPEMAN PRO")
-                        .font(Theme.text(12, weight: .bold, relativeTo: .caption))
-                        .kerning(1.2)
-                        .foregroundStyle(Theme.muted)
-                    Text(store.isPro ? "You’re Pro" : "Hard mode, your own voices and more")
-                        .font(Theme.text(16, weight: .bold))
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Theme.muted)
-            }
-            .padding(16)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.line))
+    /// App Review wants the privacy policy reachable in the app, signed in or out.
+    private var links: some View {
+        HStack(spacing: 16) {
+            Link("Privacy Policy", destination: Legal.privacy)
+            Link("Terms of Use", destination: Legal.terms)
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
+        .font(Theme.text(13, weight: .bold, relativeTo: .footnote))
+        .foregroundStyle(Theme.muted)
+        .frame(minHeight: 44)
     }
 
     /// Apple hides the address when the user chooses to, giving a relay address instead; that's still what we show.
@@ -244,4 +229,11 @@ private final class AppleReauthorization: NSObject, ASAuthorizationControllerDel
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         return scenes.flatMap(\.windows).first(where: \.isKeyWindow) ?? ASPresentationAnchor()
     }
+}
+
+/// The legal links. The terms are Apple's standard EULA until Hypeman has its own; the privacy policy address is a
+/// placeholder to replace before submitting.
+enum Legal {
+    static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    static let privacy = URL(string: "https://hypeman.app/privacy")!
 }
