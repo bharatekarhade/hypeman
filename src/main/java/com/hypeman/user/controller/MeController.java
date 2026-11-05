@@ -7,7 +7,6 @@ import com.hypeman.user.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +36,7 @@ class MeController {
         List<IdentityView> identities = users.identities(userId).stream()
                 .map(identity -> new IdentityView(identity.getProvider(), identity.getEmail()))
                 .toList();
-        return new MeResponse(UserView.of(user), identities, user.getProUntil());
+        return new MeResponse(UserView.of(user), identities);
     }
 
     @PatchMapping
@@ -59,7 +58,7 @@ class MeController {
     record DeleteRequest(String appleAuthorizationCode) {
     }
 
-    record MeResponse(UserView user, List<IdentityView> identities, Instant proUntil) {
+    record MeResponse(UserView user, List<IdentityView> identities) {
     }
 
     record UpdateRequest(@NotBlank @Size(max = 40) String displayName) {

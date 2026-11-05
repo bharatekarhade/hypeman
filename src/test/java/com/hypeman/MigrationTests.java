@@ -15,10 +15,8 @@ import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.repository.PackRepository;
 import com.hypeman.purchase.model.PackPurchase;
-import com.hypeman.purchase.model.ProTransaction;
 import com.hypeman.purchase.model.VerifiedTransaction;
 import com.hypeman.purchase.repository.PackPurchaseRepository;
-import com.hypeman.purchase.repository.ProTransactionRepository;
 import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.model.User;
 import com.hypeman.user.repository.UserIdentityRepository;
@@ -63,9 +61,6 @@ class MigrationTests {
 
     @Autowired
     PackPurchaseRepository purchases;
-
-    @Autowired
-    ProTransactionRepository proTransactions;
 
     @Autowired
     TransactionTemplate transaction;
@@ -164,37 +159,11 @@ class MigrationTests {
         assertThat(purchases.findById(purchase)).isEmpty();
     }
 
-    @Test
-    void aSubscriptionPeriodIsRecordedOnce() {
-        UUID user = users.save(new User()).getId();
-        String transactionId = "txn-" + UUID.randomUUID();
-        proTransactions.saveAndFlush(period(user, transactionId));
-
-        assertThatThrownBy(() -> proTransactions.saveAndFlush(period(user, transactionId))).isInstanceOf(DataIntegrityViolationException.class);
-    }
-
-    @Test
-    void deletingAUserRemovesTheirSubscriptionPeriods() {
-        UUID user = users.save(new User()).getId();
-        UUID period = proTransactions.saveAndFlush(period(user, "txn-" + UUID.randomUUID())).getId();
-
-        users.deleteById(user);
-
-        assertThat(proTransactions.findById(period)).isEmpty();
-    }
-
     private static PackPurchase purchase(UUID user, UUID pack) {
         PackPurchase purchase = new PackPurchase(UUID.randomUUID(), user, pack);
         String id = "txn-" + UUID.randomUUID();
         purchase.apply(new VerifiedTransaction(id, id, "com.hypeman.pack.coach", user, Instant.now(), null, null, "XCODE"));
         return purchase;
-    }
-
-    private static ProTransaction period(UUID user, String transactionId) {
-        ProTransaction period = new ProTransaction(UUID.randomUUID(), user, transactionId);
-        period.apply(new VerifiedTransaction(transactionId, "txn-original", "com.hypeman.pro.monthly", user, Instant.now(),
-                Instant.now().plus(30, ChronoUnit.DAYS), null, "XCODE"));
-        return period;
     }
 
     private UUID savePack() {
