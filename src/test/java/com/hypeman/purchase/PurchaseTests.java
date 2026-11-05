@@ -50,7 +50,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Pro and single packs, end to end. The local profile accepts Xcode's unsigned StoreKit test transactions, so these are
+ * Single packs, end to end. The local profile accepts Xcode's unsigned StoreKit test transactions, so these are
  * made up here; one forged Sandbox transaction checks that anything claiming to be from Apple is really verified.
  */
 @Import(TestcontainersConfiguration.class)
@@ -58,8 +58,6 @@ import tools.jackson.databind.json.JsonMapper;
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
 class PurchaseTests {
-
-    private static final String PRO = "com.hypeman.pro.monthly";
 
     @Autowired
     MockMvcTester mvc;
@@ -130,18 +128,6 @@ class PurchaseTests {
     }
 
     @Test
-    void proIsRecordedButDoesNotIncludePacks() throws Exception {
-        UUID user = newUser();
-        Instant expires = Instant.now().plus(30, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
-
-        MvcTestResult result = buy(user, transaction(PRO, user, expires, null));
-
-        assertThat(result).hasStatusOk();
-        assertThat(Instant.parse(read(result, "$.proUntil"))).isEqualTo(expires);
-        assertError(media(paidPack(), user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
-    }
-
-    @Test
     void aPurchaseTheServerHasNotHeardOfYetDownloadsWithItsTransaction() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
@@ -162,8 +148,6 @@ class PurchaseTests {
         UUID user = newUser();
 
         assertError(media(pack, user, transaction(paidPack().getProductId(), user, null, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
-        assertError(media(pack, user, transaction(PRO, user, Instant.now().plus(30, ChronoUnit.DAYS), null)),
-                HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test
@@ -221,21 +205,6 @@ class PurchaseTests {
     }
 
     @Test
-    void renewalsOfProBoughtSignedOutReachTheAccountThatClaimedIt() throws Exception {
-        UUID user = newUser();
-        Instant firstPeriod = Instant.now().plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
-        Instant renewed = firstPeriod.plus(30, ChronoUnit.DAYS);
-        String original = "guest-sub-" + UUID.randomUUID();
-        buy(user, transaction(PRO, null, firstPeriod, null, original, original, Instant.now()));
-
-        notify(transaction(PRO, null, renewed, null, original, "period-" + UUID.randomUUID(), firstPeriod));
-
-        assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(renewed);
-        assertError(buy(newUser(), transaction(PRO, null, renewed, null, original, "period-" + UUID.randomUUID(), renewed)),
-                HttpStatus.FORBIDDEN, "PURCHASE_ACCOUNT_MISMATCH");
-    }
-
-    @Test
     void reportingThePurchaseAgainChangesNothing() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
@@ -252,14 +221,11 @@ class PurchaseTests {
     void entitlementsListWhatTheUserOwns() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
-        Instant expires = Instant.now().plus(7, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
         buy(user, transaction(pack.getProductId(), user, null, null));
-        buy(user, transaction(PRO, user, expires, null));
 
         MvcTestResult result = mvc.get().uri("/v1/purchases").header("Authorization", bearer(user)).exchange();
 
         assertThat(result).hasStatusOk();
-        assertThat(Instant.parse(read(result, "$.proUntil"))).isEqualTo(expires);
         assertThat(this.<List<String>>read(result, "$.packIds")).containsExactly(pack.getId().toString());
     }
 
@@ -318,32 +284,6 @@ class PurchaseTests {
     }
 
     @Test
-    void aRenewalExtendsProAndAnOlderPeriodArrivingLateDoesNotShortenIt() throws Exception {
-        UUID user = newUser();
-        Instant firstPeriod = Instant.now().plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
-        Instant renewed = firstPeriod.plus(30, ChronoUnit.DAYS);
-        buy(user, transaction(PRO, user, firstPeriod, null));
-
-        notify(transaction(PRO, user, renewed, null));
-        notify(transaction(PRO, user, firstPeriod, null));
-
-        assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(renewed);
-    }
-
-    @Test
-    void aRefundedSubscriptionEndsPro() throws Exception {
-        UUID user = newUser();
-        Instant expires = Instant.now().plus(30, ChronoUnit.DAYS);
-        Instant refunded = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        String period = "period-" + UUID.randomUUID();
-        buy(user, transaction(PRO, user, expires, null, period, period, Instant.now()));
-
-        notify(transaction(PRO, user, expires, refunded, period, period, Instant.now()));
-
-        assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(refunded);
-    }
-
-    @Test
     void replayingAPurchaseSignedBeforeItsRefundKeepsThePackLocked() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
@@ -376,69 +316,21 @@ class PurchaseTests {
     }
 
     @Test
-    void replayingASubscriptionPeriodSignedBeforeItsRefundDoesNotRestorePro() throws Exception {
-        UUID user = newUser();
-        Instant expires = Instant.now().plus(30, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
-        Instant refunded = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        String period = "period-" + UUID.randomUUID();
-        String beforeRefund = transaction(PRO, user, expires, null, period, period, Instant.now());
-        buy(user, beforeRefund);
-        notify(transaction(PRO, user, expires, refunded, period, period, Instant.now()));
-
-        buy(user, beforeRefund);
-        notify(beforeRefund);
-
-        assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(refunded);
-    }
-
-    @Test
-    void aRefundOfAnEarlierPeriodKeepsTheCurrentOne() throws Exception {
-        UUID user = newUser();
-        Instant firstStarted = Instant.now().minus(29, ChronoUnit.DAYS);
-        Instant firstEnded = Instant.now().minus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
-        Instant renewedUntil = firstEnded.plus(30, ChronoUnit.DAYS);
-        String original = "sub-" + UUID.randomUUID();
-        String first = "period-" + UUID.randomUUID();
-        buy(user, transaction(PRO, user, firstEnded, null, original, first, firstStarted));
-        notify(transaction(PRO, user, renewedUntil, null, original, "period-" + UUID.randomUUID(), firstEnded));
-
-        notify(transaction(PRO, user, firstEnded, Instant.now(), original, first, firstStarted));
-
-        assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(renewedUntil);
-    }
-
-    @Test
-    void upgradingToYearlyKeepsProThroughTheYear() throws Exception {
-        UUID user = newUser();
-        Instant upgraded = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        Instant yearEnds = upgraded.plus(365, ChronoUnit.DAYS);
-        String original = "sub-" + UUID.randomUUID();
-        String monthly = "period-" + UUID.randomUUID();
-        Instant monthEnds = upgraded.plus(20, ChronoUnit.DAYS);
-        buy(user, transaction(PRO, user, monthEnds, null, original, monthly, upgraded.minus(10, ChronoUnit.DAYS)));
-
-        // Apple sends the new yearly period and revokes the monthly one as of the upgrade, in either order.
-        notify(transaction("com.hypeman.pro.yearly", user, yearEnds, null, original, "period-" + UUID.randomUUID(), upgraded));
-        notify(transaction(PRO, user, monthEnds, upgraded, original, monthly, upgraded.minus(10, ChronoUnit.DAYS)));
-
-        assertThat(users.findById(user).orElseThrow().getProUntil()).isEqualTo(yearEnds);
-    }
-
-    @Test
     void aNotificationForSomeoneWeDontKnowIsAcknowledgedAndIgnored() throws Exception {
-        assertThat(notify(transaction(PRO, UUID.randomUUID(), Instant.now().plus(1, ChronoUnit.DAYS), null))).hasStatusOk();
+        assertThat(notify(transaction(paidPack().getProductId(), UUID.randomUUID(), null, null))).hasStatusOk();
     }
 
     @Test
     void aForgedNotificationIsRefused() throws Exception {
+        Pack pack = paidPack();
         UUID user = newUser();
-        Map<String, Object> claims = notificationClaims(transaction(PRO, user, Instant.now().plus(30, ChronoUnit.DAYS), null), "Sandbox");
+        Map<String, Object> claims = notificationClaims(transaction(pack.getProductId(), user, null, null), "Sandbox");
 
         MvcTestResult result = mvc.post().uri("/v1/app-store/notifications").contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("signedPayload", jws(claims)))).exchange();
 
         assertError(result, HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_TRANSACTION");
-        assertThat(users.findById(user).orElseThrow().getProUntil()).isNull();
+        assertError(media(pack, user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test

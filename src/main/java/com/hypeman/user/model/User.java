@@ -18,8 +18,6 @@ public class User {
 
     private String displayName;
 
-    private Instant proUntil;
-
     private Instant deletedAt;
 
     private Instant bannedAt;
@@ -37,10 +35,6 @@ public class User {
 
     public String getDisplayName() {
         return displayName;
-    }
-
-    public Instant getProUntil() {
-        return proUntil;
     }
 
     public boolean isDeleted() {
@@ -77,14 +71,5 @@ public class User {
 
     public void unban() {
         bannedAt = null;
-    }
-
-    public boolean isProAt(Instant now) {
-        return proUntil != null && proUntil.isAfter(now);
-    }
-
-    /** Worked out from the user's Pro subscription periods, so it can go back as well as forward. */
-    public void updateProUntil(Instant proUntil) {
-        this.proUntil = proUntil;
     }
 }

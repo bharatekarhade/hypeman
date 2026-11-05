@@ -7,7 +7,6 @@ import com.hypeman.common.ApplicationException;
 import com.hypeman.purchase.config.AppStoreProperties;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -50,7 +49,7 @@ class TransactionVerifierTests {
     }
 
     private static TransactionVerifier verifier(boolean acceptXcode, Long appAppleId) {
-        return new TransactionVerifier(new AppStoreProperties("com.hypeman.app", appAppleId, List.of(), acceptXcode),
+        return new TransactionVerifier(new AppStoreProperties("com.hypeman.app", appAppleId, acceptXcode),
                 JsonMapper.builder().build());
     }
 
