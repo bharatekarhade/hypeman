@@ -20,7 +20,7 @@ public final class YellPlayer {
 
     /// @param motivatorID the goal's own motivator, if it has one
     public func play(_ role: ClipRole, motivatorID: String? = nil) {
-        let clip = MotivatorLibrary.shared.resolve(role, goalMotivatorID: motivatorID, pro: ProAccess.isActive())
+        let clip = MotivatorLibrary.shared.resolve(role, goalMotivatorID: motivatorID)
         nowPlaying = clip
         guard let url = clip.url else {
             log.error("No clip for \(role.rawValue)")

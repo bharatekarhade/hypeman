@@ -81,7 +81,7 @@ struct RemindersTests {
     /// The built-in voice, from a library with nothing in it.
     private func builtIn(_ goal: Goal, _ role: ClipRole) -> ResolvedClip {
         MotivatorLibrary(root: FileManager.default.temporaryDirectory.appending(path: "empty-\(UUID().uuidString)"),
-                         defaultsSuite: "RemindersTests-\(UUID().uuidString)").resolve(role, goalMotivatorID: nil, pro: false)
+                         defaultsSuite: "RemindersTests-\(UUID().uuidString)").resolve(role, goalMotivatorID: nil)
     }
 
     private func goal(_ title: String, remindIn seconds: TimeInterval) -> Goal {

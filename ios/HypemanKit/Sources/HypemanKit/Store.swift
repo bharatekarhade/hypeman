@@ -3,19 +3,15 @@ import Observation
 import OSLog
 import StoreKit
 
-/// Hypeman Pro and single packs through StoreKit 2. Pro is for app features (hard mode, the Live Activity); packs are
-/// always bought one at a time, so every sale is its creator's. Buying, restoring and downloading packs need an account,
-/// so every purchase and download belongs to a user: purchases carry their user id as the appAccountToken and are
-/// reported to the server. A transaction is finished only once the server has it, so one that fails to report comes back
+/// Packs through StoreKit 2, bought one at a time, so every sale is its creator's. Buying, restoring and downloading
+/// packs need an account, so every purchase and download belongs to a user: purchases carry their user id as the
+/// appAccountToken and are reported to the server. A transaction is finished only once the server has it, so one that fails to report comes back
 /// through `Transaction.updates` on the next launch; one that arrives signed out (bought on another device, say) is
 /// reported after the next sign-in.
 @MainActor
 @Observable
 public final class Store {
     public static let shared = Store(account: .shared, api: .shared)
-
-    /// The Pro subscriptions, cheapest period first. Kept in step with hypeman.app-store.pro-product-ids on the server.
-    public static let proProductIDs = ["com.hypeman.pro.monthly", "com.hypeman.pro.yearly"]
 
     /// Server codes that will never succeed on a retry, so the transaction is finished anyway.
     private static let permanentFailures: Set<String> = ["PURCHASE_ACCOUNT_MISMATCH", "UNKNOWN_PRODUCT", "INVALID_TRANSACTION"]
@@ -36,25 +32,8 @@ public final class Store {
         self.api = api
     }
 
-    public var proProducts: [Product] {
-        Self.proProductIDs.compactMap { products[$0] }
-    }
-
-    /// When the current Pro period ends, from StoreKit or the server, whichever is later.
-    public var proUntil: Date? {
-        Self.proUntil(entitlements, local)
-    }
-
-    public var isPro: Bool {
-        proUntil.map { $0 > .now } ?? false
-    }
-
     public func owns(_ pack: CatalogPack) -> Bool {
         Self.owns(pack, entitlements, local)
-    }
-
-    nonisolated static func proUntil(_ entitlements: Entitlements?, _ local: LocalEntitlements) -> Date? {
-        [entitlements?.proUntil, local.proUntil].compactMap { $0 }.max()
     }
 
     nonisolated static func owns(_ pack: CatalogPack, _ entitlements: Entitlements?, _ local: LocalEntitlements) -> Bool {
@@ -62,9 +41,9 @@ public final class Store {
             || pack.productId.map(local.packProductIDs.contains) == true
     }
 
-    /// Prices for Pro and for the catalog's paid packs, in the user's storefront.
+    /// Prices for the catalog's paid packs, in the user's storefront.
     public func loadProducts(for packs: [CatalogPack]) async {
-        let ids = Set(Self.proProductIDs + packs.compactMap(\.productId))
+        let ids = Set(packs.compactMap(\.productId))
         do {
             for product in try await Product.products(for: ids) {
                 products[product.id] = product
@@ -74,16 +53,10 @@ public final class Store {
         }
     }
 
-    /// Loads Pro prices only, for the paywall.
-    public func loadProProducts() async {
-        await loadProducts(for: [])
-    }
-
     public func refreshEntitlements() async {
         await refreshLocal()
         guard account.isSignedIn else {
             entitlements = nil
-            publishPro()
             return
         }
         do {
@@ -91,7 +64,6 @@ public final class Store {
         } catch {
             log.error("Could not load entitlements: \(error)")
         }
-        publishPro()
     }
 
     /// Signed links to a pack's videos, for the signed-in user. A paid pack also sends StoreKit's transaction when this
@@ -152,7 +124,7 @@ public final class Store {
         }
     }
 
-    /// Renewals, refunds, Ask to Buy approvals and purchases made on other devices. Call once at launch.
+    /// Refunds, Ask to Buy approvals and purchases made on other devices. Call once at launch.
     public func startListening() {
         guard updates == nil else { return }
         updates = Task { [weak self] in
@@ -197,19 +169,9 @@ public final class Store {
         var local = LocalEntitlements()
         for await verification in Transaction.currentEntitlements {
             guard case .verified(let transaction) = verification, transaction.revocationDate == nil else { continue }
-            if Self.proProductIDs.contains(transaction.productID) {
-                local.proUntil = [local.proUntil, transaction.expirationDate].compactMap { $0 }.max()
-            } else {
-                local.packProductIDs.insert(transaction.productID)
-            }
+            local.packProductIDs.insert(transaction.productID)
         }
         self.local = local
-        publishPro()
-    }
-
-    /// Hands the Pro end date to the parts of the app that can't ask the Store: the Kit's syncs and the extensions.
-    private func publishPro() {
-        ProAccess.until = proUntil
     }
 
     private static func current(_ productID: String) async -> VerificationResult<Transaction>? {
@@ -224,11 +186,9 @@ public final class Store {
 
 /// What StoreKit says this Apple ID owns, unrevoked.
 public struct LocalEntitlements: Equatable, Sendable {
-    public var proUntil: Date?
     public var packProductIDs: Set<String> = []
 
-    public init(proUntil: Date? = nil, packProductIDs: Set<String> = []) {
-        self.proUntil = proUntil
+    public init(packProductIDs: Set<String> = []) {
         self.packProductIDs = packProductIDs
     }
 }

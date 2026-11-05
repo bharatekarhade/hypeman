@@ -45,9 +45,8 @@ public enum Reminders {
     /// were started, finished or deleted. The notification center works asynchronously; see `scheduled()`.
     public static func sync(in context: ModelContext, library: MotivatorLibrary = .shared) {
         guard center != nil, let goals = try? GoalStore.remaining(in: context) else { return }
-        let pro = ProAccess.isActive()
         let requests = Requests(all: requests(for: goals, clip: { goal, role in
-            library.resolve(role, goalMotivatorID: goal.motivatorID, pro: pro)
+            library.resolve(role, goalMotivatorID: goal.motivatorID)
         }, now: .now, quietUntil: QuietMode.until))
         let waiting = Set(goals.filter { $0.startedAt == nil }.map(\.id.uuidString))
         latest.withLock { latest in

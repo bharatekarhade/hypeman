@@ -17,7 +17,6 @@ struct VoicesView: View {
     @State private var installing: UUID?
     @State private var buying: String?
     @State private var showRecorder = false
-    @State private var paywall: String?
     @State private var confirmRemove: Motivator?
     @State private var failure: String?
     @State private var showSignIn = false
@@ -33,17 +32,17 @@ struct VoicesView: View {
                     .padding(.bottom, 8)
                 SectionLabel("YOUR VOICES")
                 ForEach(voices) { voice in
-                    VoiceRow(voice: voice, isSelected: voice.id == defaultID, isLocked: voice.needsPro && !store.isPro) {
+                    VoiceRow(voice: voice, isSelected: voice.id == defaultID) {
                         use(voice)
                     } remove: {
                         confirmRemove = voice
                     }
                 }
-                Toggle(isOn: Binding(get: { library.shuffle && store.isPro }, set: setShuffle)) {
+                Toggle(isOn: Binding(get: { library.shuffle }, set: setShuffle)) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Shuffle")
                             .font(Theme.text(17, weight: .bold))
-                        Text("A random voice from your library on every yell. Pro.")
+                        Text("A random voice from your library on every yell.")
                             .font(Theme.text(13, relativeTo: .footnote))
                             .foregroundStyle(Theme.muted)
                     }
@@ -51,13 +50,7 @@ struct VoicesView: View {
                 .tint(Theme.accent)
                 .padding(16)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
-                Button {
-                    if store.isPro {
-                        showRecorder = true
-                    } else {
-                        paywall = "Yell at yourself in your own voice."
-                    }
-                } label: {
+                Button { showRecorder = true } label: {
                     Label("RECORD YOUR OWN", systemImage: "mic.fill")
                         .font(Theme.display(20, relativeTo: .headline))
                         .kerning(1.2)
@@ -118,9 +111,6 @@ struct VoicesView: View {
         }
         .sheet(isPresented: $showSignIn, onDismiss: resumeAfterSignIn) { AccountSheet() }
         .sheet(isPresented: $showRecorder, onDismiss: reload) { RecordVoiceSheet() }
-        .sheet(isPresented: Binding(get: { paywall != nil }, set: { if !$0 { paywall = nil } })) {
-            PaywallSheet(headline: paywall ?? "")
-        }
         .confirmationDialog("Remove \(confirmRemove?.title ?? "this voice")?",
                             isPresented: Binding(get: { confirmRemove != nil }, set: { if !$0 { confirmRemove = nil } }),
                             titleVisibility: .visible, presenting: confirmRemove) { voice in
@@ -167,19 +157,11 @@ struct VoicesView: View {
     }
 
     private func use(_ voice: Motivator) {
-        if voice.needsPro && !store.isPro {
-            paywall = "Yell at yourself in your own voice."
-            return
-        }
         library.defaultID = voice.id
         reload()
     }
 
     private func setShuffle(_ on: Bool) {
-        guard store.isPro else {
-            paywall = "A different voice every time."
-            return
-        }
         library.shuffle = on
         reload()
     }
@@ -297,7 +279,6 @@ struct VoicesView: View {
 struct VoiceRow: View {
     let voice: Motivator
     let isSelected: Bool
-    let isLocked: Bool
     let select: () -> Void
     var remove: (() -> Void)?
 
@@ -322,15 +303,7 @@ struct VoiceRow: View {
                             .foregroundStyle(Theme.muted)
                     }
                     Spacer(minLength: 8)
-                    if isLocked {
-                        Text("PRO")
-                            .font(Theme.text(11, weight: .bold, relativeTo: .caption2))
-                            .kerning(1.2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.muted))
-                            .foregroundStyle(Theme.muted)
-                    } else if isSelected {
+                    if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 22))
                             .foregroundStyle(Theme.accent)
@@ -418,7 +391,7 @@ struct VoicePickerSheet: View {
                 }
                 .buttonStyle(.plain)
                 ForEach(voices) { voice in
-                    VoiceRow(voice: voice, isSelected: goal.motivatorID == voice.id, isLocked: false) { choose(voice.id) }
+                    VoiceRow(voice: voice, isSelected: goal.motivatorID == voice.id) { choose(voice.id) }
                 }
             }
             .padding(EdgeInsets(top: 28, leading: 20, bottom: 24, trailing: 20))
