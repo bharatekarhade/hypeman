@@ -25,8 +25,4 @@ public interface UserIdentityRepository extends JpaRepository<UserIdentity, UUID
             VALUES (:id, :userId, :provider, :subject, :email)
             ON CONFLICT (provider, subject) DO NOTHING""", nativeQuery = true)
     int insertIfAbsent(UUID id, UUID userId, String provider, String subject, String email);
-
-    @Modifying
-    @Query("delete from UserIdentity i where i.userId = :userId")
-    void deleteByUserId(UUID userId);
 }
