@@ -229,13 +229,14 @@ class AuthFlowTests {
     }
 
     @Test
-    void deletingTheAccountRevokesTheAppleSignInSignsOutEverywhereAndFreesTheAppleAccount() throws Exception {
+    void deletingTheAccountRevokesTheAppleSignInDeletesTheUserAndFreesTheAppleAccount() throws Exception {
         String subject = newSubject();
         MvcTestResult signIn = signInWithApple(subject, UUID.randomUUID());
 
         assertThat(deleteAccount(signIn, "code-for-" + subject)).hasStatus(HttpStatus.ACCEPTED);
 
         assertThat(APPLE.revokedTokens).contains("apple-refresh-" + subject);
+        assertThat(users.findById(UUID.fromString(read(signIn, "$.user.id")))).isEmpty();
         assertThat(refresh(read(signIn, "$.refreshToken"))).hasStatus(HttpStatus.UNAUTHORIZED);
         assertError(mvc.get().uri("/v1/me").header(AUTHORIZATION, bearer(signIn)).exchange(), HttpStatus.UNAUTHORIZED, "ACCOUNT_DELETED");
         MvcTestResult again = signInWithApple(subject, UUID.randomUUID());

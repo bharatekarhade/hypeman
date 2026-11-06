@@ -5,7 +5,6 @@ import com.hypeman.common.Ids;
 import com.hypeman.user.model.IdentityProvider;
 import com.hypeman.user.model.User;
 import com.hypeman.user.model.UserBannedEvent;
-import com.hypeman.user.model.UserDeletedEvent;
 import com.hypeman.user.model.UserIdentity;
 import com.hypeman.user.repository.UserIdentityRepository;
 import com.hypeman.user.repository.UserRepository;
@@ -64,7 +63,6 @@ public class UserService {
     @Transactional(readOnly = true)
     public User get(UUID userId) {
         User user = users.findById(userId)
-                .filter(found -> !found.isDeleted())
                 .orElseThrow(() -> new ApplicationException("ACCOUNT_DELETED", "This account was deleted."));
         if (user.isBanned()) {
             throw banned();
@@ -104,17 +102,15 @@ public class UserService {
     }
 
     /**
-     * Deletes an account at once from the user's point of view: their sign-in with Apple is revoked, they are signed out
-     * everywhere and their Apple or Google account is free to start a new one. The user row stays, marked deleted,
-     * until the purge job removes it. If the revocation fails, nothing is deleted.
+     * Deletes an account straight away: their sign-in with Apple is revoked, then the user row goes, and the database
+     * takes their identities, devices, sign-in tokens and purchases with it (ON DELETE CASCADE). They are signed out
+     * everywhere and their Apple or Google account is free to start a new one. If the revocation fails, nothing is deleted.
      */
     @Transactional
     public void delete(UUID userId, String appleAuthorizationCode) {
         User user = get(userId);
         revoker.revoke(identities.findByUserIdOrderByProvider(userId), appleAuthorizationCode);
-        user.markDeleted(clock.instant());
-        identities.deleteByUserId(userId);
-        events.publishEvent(new UserDeletedEvent(userId));
+        users.delete(user);
     }
 
     private static ApplicationException banned() {
