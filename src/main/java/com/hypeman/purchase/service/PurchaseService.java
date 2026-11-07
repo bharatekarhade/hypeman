@@ -69,7 +69,7 @@ public class PurchaseService {
         VerifiedTransaction transaction = notified.get();
         UUID userId = transaction.appAccountToken() != null ? transaction.appAccountToken() : ownerOf(transaction.originalTransactionId());
         if (userId == null || !users.existsById(userId)) {
-            // Not claimed yet, bought outside the app (an offer code, say), or by an account that's been purged. The app
+            // Not claimed yet, bought outside the app (an offer code, say), or by an account that's been deleted. The app
             // reports it once the buyer signs in.
             log.info("Ignoring a notification for transaction {} with no known user", transaction.originalTransactionId());
             return;

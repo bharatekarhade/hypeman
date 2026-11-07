@@ -45,9 +45,8 @@ class MeController {
     }
 
     /**
-     * 202: the account is gone for the user now; the purge job removes the rest within 30 days. A user who signs in with
-     * Apple confirms with Sign in with Apple first, and the app sends that fresh authorization code so the server can
-     * revoke the sign-in.
+     * 202: the account and everything stored for it are deleted now. A user who signs in with Apple confirms with Sign in
+     * with Apple first, and the app sends that fresh authorization code so the server can revoke the sign-in.
      */
     @DeleteMapping
     ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt token, @RequestBody(required = false) DeleteRequest body) {
