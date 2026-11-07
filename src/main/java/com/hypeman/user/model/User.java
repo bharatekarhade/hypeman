@@ -18,8 +18,6 @@ public class User {
 
     private String displayName;
 
-    private Instant deletedAt;
-
     private Instant bannedAt;
 
     @Column(insertable = false, updatable = false)
@@ -35,10 +33,6 @@ public class User {
 
     public String getDisplayName() {
         return displayName;
-    }
-
-    public boolean isDeleted() {
-        return deletedAt != null;
     }
 
     public boolean isBanned() {
@@ -59,10 +53,6 @@ public class User {
 
     public void rename(String displayName) {
         this.displayName = displayName;
-    }
-
-    public void markDeleted(Instant at) {
-        deletedAt = at;
     }
 
     public void ban(Instant at) {

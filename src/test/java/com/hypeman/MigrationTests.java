@@ -70,7 +70,7 @@ class MigrationTests {
         UUID user = users.save(new User()).getId();
         Instant before = users.findById(user).orElseThrow().getUpdatedAt();
 
-        transaction.executeWithoutResult(status -> users.findById(user).orElseThrow().markDeleted(Instant.now()));
+        transaction.executeWithoutResult(status -> users.findById(user).orElseThrow().rename("Sam"));
 
         assertThat(users.findById(user).orElseThrow().getUpdatedAt()).isAfter(before);
     }
