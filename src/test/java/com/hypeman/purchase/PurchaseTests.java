@@ -208,6 +208,23 @@ class PurchaseTests {
     }
 
     @Test
+    void aRefundOfAPurchaseRestoredFromADeletedAccountLocksThePack() throws Exception {
+        Pack pack = paidPack();
+        UUID deleted = newUser();
+        String originalId = "deleted-" + UUID.randomUUID();
+        String beforeRefund = transaction(pack.getProductId(), deleted, null, null, originalId);
+        buy(deleted, beforeRefund);
+        users.deleteById(deleted);
+        UUID next = newUser();
+        buy(next, beforeRefund);
+
+        notify(transaction(pack.getProductId(), deleted, null, Instant.now(), originalId));
+
+        assertError(media(pack, next), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(media(pack, next, beforeRefund), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+    }
+
+    @Test
     void aRefundOfAClaimedPurchaseLocksThePackEverywhere() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();

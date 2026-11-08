@@ -71,10 +71,14 @@ public class PurchaseService {
             return;
         }
         VerifiedTransaction transaction = notified.get();
-        UUID userId = transaction.appAccountToken() != null ? transaction.appAccountToken() : ownerOf(transaction.originalTransactionId());
+        UUID userId = transaction.appAccountToken();
         if (userId == null || !users.existsById(userId)) {
-            // Not claimed yet, bought outside the app (an offer code, say), or by an account that's been deleted. The app
-            // reports it once the buyer signs in.
+            // Bought outside the app (an offer code, say), or in an account that's since been deleted: it's whoever
+            // claimed it.
+            userId = ownerOf(transaction.originalTransactionId());
+        }
+        if (userId == null) {
+            // Nobody has claimed it yet. The app reports it once the buyer signs in.
             log.info("Ignoring a notification for transaction {} with no known user", transaction.originalTransactionId());
             return;
         }
