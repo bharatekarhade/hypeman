@@ -22,7 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Single packs, from Apple's signed transactions: every pack is bought on its own, so each sale is its creator's. The app
  * attaches the user's id to the purchase as its appAccountToken, which is how both its own reports and Apple's
  * notifications find them. A purchase that carries none (an offer code redeemed outside the app, say) joins the account
- * that first reports it. The same transaction can arrive any number of times, from the app and from Apple, in any order,
+ * that first reports it, and so does one made in an account that's since been deleted, so someone who deletes their
+ * account and signs up again can restore what they paid for. The same transaction can arrive any number of times, from the app and from Apple, in any order,
  * and a copy signed before a refund stays valid, so applying one never undoes a refund or a later purchase.
  */
 @Service
@@ -45,11 +46,14 @@ public class PurchaseService {
         this.clock = clock;
     }
 
-    /** A purchase or restore the app reports: one the user made, or one without an account that nobody has claimed. */
+    /**
+     * A purchase or restore the app reports: one the user made, or one without an account, or from a deleted one, that
+     * nobody has claimed.
+     */
     @Transactional
     public Entitlements record(UUID userId, String signedTransaction) {
         VerifiedTransaction transaction = verifier.verifyTransaction(signedTransaction);
-        if (transaction.appAccountToken() != null && !userId.equals(transaction.appAccountToken())) {
+        if (!mayClaim(userId, transaction)) {
             throw new ApplicationException("PURCHASE_ACCOUNT_MISMATCH",
                     "This purchase was made while signed in to a different Hypeman account. Sign in with that account to use it.");
         }
@@ -105,7 +109,7 @@ public class PurchaseService {
             return false;
         }
         VerifiedTransaction transaction = verifier.verifyTransaction(signedTransaction);
-        if (transaction.appAccountToken() != null && !userId.equals(transaction.appAccountToken())) {
+        if (!mayClaim(userId, transaction)) {
             return false;
         }
         return transaction.productId().equals(pack.getProductId()) && transaction.revokedAt() == null
@@ -114,7 +118,16 @@ public class PurchaseService {
                         .orElse(true);
     }
 
-    /** Who claimed a purchase made without an account, if anyone has. */
+    /**
+     * Whether the transaction's account lets the user have it: it's theirs, it carries none, or the account it was made
+     * in has been deleted. Whether someone else has already claimed it is apply's to check.
+     */
+    private boolean mayClaim(UUID userId, VerifiedTransaction transaction) {
+        UUID account = transaction.appAccountToken();
+        return account == null || account.equals(userId) || !users.existsById(account);
+    }
+
+    /** Who claimed a purchase made without an account or from a deleted one, if anyone has. */
     private UUID ownerOf(String originalTransactionId) {
         return purchases.findByOriginalTransactionId(originalTransactionId).map(PackPurchase::getUserId).orElse(null);
     }

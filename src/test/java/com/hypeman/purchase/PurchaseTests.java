@@ -191,6 +191,23 @@ class PurchaseTests {
     }
 
     @Test
+    void aPurchaseFromADeletedAccountRestoresToTheNextAccountToReportIt() throws Exception {
+        Pack pack = paidPack();
+        UUID deleted = newUser();
+        String bought = transaction(pack.getProductId(), deleted, null, null);
+        buy(deleted, bought);
+        users.deleteById(deleted);
+        UUID next = newUser();
+
+        assertThat(media(pack, next, bought)).hasStatusOk();
+        assertThat(buy(next, bought)).hasStatusOk();
+
+        assertThat(media(pack, next)).hasStatusOk();
+        assertError(buy(newUser(), bought), HttpStatus.FORBIDDEN, "PURCHASE_ACCOUNT_MISMATCH");
+        assertError(media(pack, newUser(), bought), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+    }
+
+    @Test
     void aRefundOfAClaimedPurchaseLocksThePackEverywhere() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
