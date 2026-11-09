@@ -7,6 +7,7 @@ import com.hypeman.goal.model.GoalChange;
 import com.hypeman.goal.repository.GoalRepository;
 import com.hypeman.user.service.UserService;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -26,6 +27,8 @@ public class GoalService {
 
     public static final int MAX_TITLE_LENGTH = 80;
     public static final int MAX_MOTIVATOR_ID_LENGTH = 100;
+    /** Longer than any push takes to commit. */
+    static final Duration SYNC_OVERLAP = Duration.ofMinutes(1);
 
     private final GoalRepository goals;
     private final UserService users;
@@ -58,6 +61,25 @@ public class GoalService {
                         goals.save(goal);
                     }
                 });
+    }
+
+    /**
+     * What changed since the app's last pull, deletions included, or with no {@code since}, every goal the user has.
+     * The cursor to pass next time is a little before now: a push still committing while this reads gets its updated_at
+     * from when it started, and the overlap catches it on the next pull. Seeing a goal twice changes nothing.
+     */
+    @Transactional(readOnly = true)
+    public GoalPage pull(UUID userId, Instant since) {
+        users.get(userId);
+        Instant cursor = clock.instant().minus(SYNC_OVERLAP);
+        List<Goal> changed = since == null
+                ? goals.findByUserIdAndDeletedAtIsNullOrderBySortIndex(userId)
+                : goals.findByUserIdAndUpdatedAtAfterOrderByUpdatedAt(userId, since);
+        return new GoalPage(changed, cursor);
+    }
+
+    /** @param cursor pass as {@code since} on the next pull */
+    public record GoalPage(List<Goal> goals, Instant cursor) {
     }
 
     private static void check(GoalChange change) {
