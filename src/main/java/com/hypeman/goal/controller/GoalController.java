@@ -57,9 +57,9 @@ class GoalController {
     record PullResponse(List<GoalView> goals, Instant cursor) {
     }
 
-    /** A deleted goal has only its id, changedAt and deleted. */
+    /** A deleted goal has only its id, changedAt and deleted. The app may leave deleted out for a goal it still has. */
     record GoalView(UUID id, String title, Integer sortIndex, Instant reminderAt, Instant startedAt, Instant completedAt,
-                    String motivatorId, Instant changedAt, boolean deleted) {
+                    String motivatorId, Instant changedAt, Boolean deleted) {
 
         static GoalView of(Goal goal) {
             return new GoalView(goal.getGoalId(), goal.getTitle(), goal.getSortIndex(), goal.getReminderAt(), goal.getStartedAt(),
@@ -67,7 +67,8 @@ class GoalController {
         }
 
         GoalChange toChange() {
-            return new GoalChange(id, title, sortIndex, reminderAt, startedAt, completedAt, motivatorId, changedAt, deleted);
+            return new GoalChange(id, title, sortIndex, reminderAt, startedAt, completedAt, motivatorId, changedAt,
+                    Boolean.TRUE.equals(deleted));
         }
     }
 }
