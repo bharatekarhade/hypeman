@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -138,6 +139,36 @@ class GoalTests {
 
         assertThat(this.<List<String>>read(pull(first, null), "$.goals[*].title")).containsExactly("Leg day");
         assertThat(this.<List<String>>read(pull(second, null), "$.goals[*].title")).containsExactly("Call mom");
+    }
+
+    @Test
+    void aGoalTheAppCouldNotHaveSavedIsRefused() throws Exception {
+        UUID user = newUser();
+        Map<String, Object> noChangedAt = goal(UUID.randomUUID(), "Leg day", 0, now());
+        noChangedAt.remove("changedAt");
+        Map<String, Object> noSortIndex = goal(UUID.randomUUID(), "Leg day", 0, now());
+        noSortIndex.remove("sortIndex");
+
+        assertError(push(user, goal(UUID.randomUUID(), "  ", 0, now())), HttpStatus.UNPROCESSABLE_CONTENT, "VALIDATION_FAILED");
+        assertError(push(user, goal(UUID.randomUUID(), "a".repeat(81), 0, now())), HttpStatus.UNPROCESSABLE_CONTENT, "VALIDATION_FAILED");
+        assertError(push(user, noChangedAt), HttpStatus.UNPROCESSABLE_CONTENT, "VALIDATION_FAILED");
+        assertError(push(user, noSortIndex), HttpStatus.UNPROCESSABLE_CONTENT, "VALIDATION_FAILED");
+        assertThat(this.<List<Object>>read(pull(user, null), "$.goals")).isEmpty();
+    }
+
+    @Test
+    void aPushHasAtMost500Goals() throws Exception {
+        UUID user = newUser();
+        Map<String, Object>[] goals = IntStream.range(0, 501)
+                .mapToObj(i -> goal(UUID.randomUUID(), "Goal " + i, i, now()))
+                .toArray(Map[]::new);
+
+        assertError(push(user, goals), HttpStatus.UNPROCESSABLE_CONTENT, "VALIDATION_FAILED");
+    }
+
+    @Test
+    void anEmptyPushIsFine() throws Exception {
+        assertThat(push(newUser())).hasStatus(HttpStatus.NO_CONTENT);
     }
 
     @Test
