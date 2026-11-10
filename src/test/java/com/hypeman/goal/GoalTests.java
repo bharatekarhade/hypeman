@@ -76,6 +76,18 @@ class GoalTests {
     }
 
     @Test
+    void theNewestChangeWinsWhateverOrderTheyArriveIn() throws Exception {
+        UUID user = newUser();
+        UUID id = UUID.randomUUID();
+        Instant earlier = now().minus(5, ChronoUnit.MINUTES);
+        push(user, goal(id, "Leg day, heavy", 0, now()));
+
+        push(user, goal(id, "Leg day", 0, earlier));
+
+        assertThat(this.<List<String>>read(pull(user, null), "$.goals[*].title")).containsExactly("Leg day, heavy");
+    }
+
+    @Test
     void goalsNeedSignIn() throws Exception {
         assertError(mvc.get().uri("/v1/goals").exchange(), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
         assertError(mvc.put().uri("/v1/goals").contentType(MediaType.APPLICATION_JSON).content("{\"goals\": []}").exchange(),
