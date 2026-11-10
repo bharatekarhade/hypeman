@@ -178,6 +178,18 @@ class GoalTests {
                 HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
     }
 
+    @Test
+    void aDeletedAccountsTokenCantSync() throws Exception {
+        UUID user = newUser();
+        String bearer = bearer(user);
+        users.deleteById(user);
+        String body = json.writeValueAsString(Map.of("goals", List.of(goal(UUID.randomUUID(), "Leg day", 0, now()))));
+
+        assertError(mvc.put().uri("/v1/goals").header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON).content(body).exchange(),
+                HttpStatus.UNAUTHORIZED, "ACCOUNT_DELETED");
+        assertError(mvc.get().uri("/v1/goals").header("Authorization", bearer).exchange(), HttpStatus.UNAUTHORIZED, "ACCOUNT_DELETED");
+    }
+
     @SafeVarargs
     private MvcTestResult push(UUID user, Map<String, Object>... goals) throws Exception {
         return mvc.put().uri("/v1/goals").header("Authorization", bearer(user)).contentType(MediaType.APPLICATION_JSON)
