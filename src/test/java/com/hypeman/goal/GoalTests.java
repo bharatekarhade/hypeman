@@ -104,6 +104,17 @@ class GoalTests {
     }
 
     @Test
+    void aDeletedGoalStaysDeleted() throws Exception {
+        UUID user = newUser();
+        UUID id = UUID.randomUUID();
+        push(user, deletion(id, now().minusSeconds(60)));
+
+        push(user, goal(id, "Leg day", 0, now()));
+
+        assertThat(this.<List<Object>>read(pull(user, null), "$.goals")).isEmpty();
+    }
+
+    @Test
     void goalsNeedSignIn() throws Exception {
         assertError(mvc.get().uri("/v1/goals").exchange(), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
         assertError(mvc.put().uri("/v1/goals").contentType(MediaType.APPLICATION_JSON).content("{\"goals\": []}").exchange(),
