@@ -115,6 +115,32 @@ class GoalTests {
     }
 
     @Test
+    void aChangeDatedInTheFutureCountsAsMadeNow() throws Exception {
+        UUID user = newUser();
+        UUID id = UUID.randomUUID();
+        push(user, goal(id, "From a phone set a year ahead", 0, now().plus(365, ChronoUnit.DAYS)));
+
+        push(user, goal(id, "Leg day", 0, now().plusSeconds(1)));
+
+        MvcTestResult pulled = pull(user, null);
+        assertThat(this.<List<String>>read(pulled, "$.goals[*].title")).containsExactly("Leg day");
+        assertThat(Instant.parse(read(pulled, "$.goals[0].changedAt"))).isBeforeOrEqualTo(Instant.now());
+    }
+
+    @Test
+    void twoAccountsCanHoldTheSameGoal() throws Exception {
+        UUID first = newUser();
+        UUID second = newUser();
+        UUID shared = UUID.randomUUID();
+        push(first, goal(shared, "Leg day", 0, now()));
+
+        push(second, goal(shared, "Call mom", 0, now()));
+
+        assertThat(this.<List<String>>read(pull(first, null), "$.goals[*].title")).containsExactly("Leg day");
+        assertThat(this.<List<String>>read(pull(second, null), "$.goals[*].title")).containsExactly("Call mom");
+    }
+
+    @Test
     void goalsNeedSignIn() throws Exception {
         assertError(mvc.get().uri("/v1/goals").exchange(), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
         assertError(mvc.put().uri("/v1/goals").contentType(MediaType.APPLICATION_JSON).content("{\"goals\": []}").exchange(),
