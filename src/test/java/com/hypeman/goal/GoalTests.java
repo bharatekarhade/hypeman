@@ -88,6 +88,22 @@ class GoalTests {
     }
 
     @Test
+    void aDeletedGoalComesBackAsDeletedWithNothingElse() throws Exception {
+        UUID user = newUser();
+        UUID id = UUID.randomUUID();
+        push(user, goal(id, "Leg day", 0, now().minusSeconds(60)));
+        String cursor = read(pull(user, null), "$.cursor");
+
+        push(user, deletion(id, now()));
+
+        MvcTestResult changed = pull(user, cursor);
+        assertThat(this.<List<String>>read(changed, "$.goals[*].id")).containsExactly(id.toString());
+        assertThat(this.<Boolean>read(changed, "$.goals[0].deleted")).isTrue();
+        assertThat(this.<Object>read(changed, "$.goals[0].title")).isNull();
+        assertThat(this.<List<Object>>read(pull(user, null), "$.goals")).as("a full pull skips deleted goals").isEmpty();
+    }
+
+    @Test
     void goalsNeedSignIn() throws Exception {
         assertError(mvc.get().uri("/v1/goals").exchange(), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
         assertError(mvc.put().uri("/v1/goals").contentType(MediaType.APPLICATION_JSON).content("{\"goals\": []}").exchange(),
@@ -112,6 +128,14 @@ class GoalTests {
         goal.put("title", title);
         goal.put("sortIndex", sortIndex);
         goal.put("changedAt", changedAt.toString());
+        return goal;
+    }
+
+    private static Map<String, Object> deletion(UUID id, Instant changedAt) {
+        Map<String, Object> goal = new LinkedHashMap<>();
+        goal.put("id", id.toString());
+        goal.put("changedAt", changedAt.toString());
+        goal.put("deleted", true);
         return goal;
     }
 
