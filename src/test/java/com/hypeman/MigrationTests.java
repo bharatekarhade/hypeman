@@ -7,6 +7,9 @@ import com.hypeman.auth.model.Device;
 import com.hypeman.auth.model.RefreshToken;
 import com.hypeman.auth.repository.DeviceRepository;
 import com.hypeman.auth.repository.RefreshTokenRepository;
+import com.hypeman.goal.model.Goal;
+import com.hypeman.goal.model.GoalChange;
+import com.hypeman.goal.repository.GoalRepository;
 import com.hypeman.pack.model.Clip;
 import com.hypeman.pack.model.ClipRole;
 import com.hypeman.pack.model.ClipStatus;
@@ -61,6 +64,9 @@ class MigrationTests {
 
     @Autowired
     PackPurchaseRepository purchases;
+
+    @Autowired
+    GoalRepository goals;
 
     @Autowired
     TransactionTemplate transaction;
@@ -157,6 +163,31 @@ class MigrationTests {
         users.deleteById(user);
 
         assertThat(purchases.findById(purchase)).isEmpty();
+    }
+
+    @Test
+    void anAccountHasEachGoalOnce() {
+        UUID user = users.save(new User()).getId();
+        UUID goalId = UUID.randomUUID();
+        goals.saveAndFlush(goal(user, goalId));
+
+        assertThatThrownBy(() -> goals.saveAndFlush(goal(user, goalId))).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingAUserRemovesTheirGoals() {
+        UUID user = users.save(new User()).getId();
+        UUID goal = goals.saveAndFlush(goal(user, UUID.randomUUID())).getId();
+
+        users.deleteById(user);
+
+        assertThat(goals.findById(goal)).isEmpty();
+    }
+
+    private static Goal goal(UUID user, UUID goalId) {
+        Goal goal = new Goal(UUID.randomUUID(), user, goalId);
+        goal.apply(new GoalChange(goalId, "Leg day", 0, null, null, null, null, Instant.now(), false));
+        return goal;
     }
 
     private static PackPurchase purchase(UUID user, UUID pack) {
