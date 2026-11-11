@@ -12,8 +12,10 @@ import com.hypeman.pack.model.ClipStatus;
 import com.hypeman.pack.model.ClipUpload;
 import com.hypeman.pack.model.ClipUploadedEvent;
 import com.hypeman.pack.model.Pack;
+import com.hypeman.pack.model.PackDownload;
 import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
+import com.hypeman.pack.repository.PackDownloadRepository;
 import com.hypeman.pack.repository.PackRepository;
 import com.hypeman.purchase.service.PurchaseService;
 import java.time.Clock;
@@ -45,15 +47,17 @@ public class PackService {
 
     private final PackRepository packRepository;
     private final ClipRepository clipRepository;
+    private final PackDownloadRepository downloadRepository;
     private final MediaStorage mediaStorage;
     private final Clock clock;
     private final ApplicationEventPublisher events;
     private final PurchaseService purchases;
 
-    public PackService(PackRepository packRepository, ClipRepository clipRepository, MediaStorage mediaStorage, Clock clock,
-                       ApplicationEventPublisher events, PurchaseService purchases) {
+    public PackService(PackRepository packRepository, ClipRepository clipRepository, PackDownloadRepository downloadRepository,
+                       MediaStorage mediaStorage, Clock clock, ApplicationEventPublisher events, PurchaseService purchases) {
         this.packRepository = packRepository;
         this.clipRepository = clipRepository;
+        this.downloadRepository = downloadRepository;
         this.mediaStorage = mediaStorage;
         this.clock = clock;
         this.events = events;
@@ -174,11 +178,11 @@ public class PackService {
 
     /**
      * Signed links to a published pack's videos: any signed-in user's for a free pack; for a paid one, only for its buyer.
-     * A pack that isn't published looks like one that doesn't exist.
+     * A pack that isn't published looks like one that doesn't exist. Each download is counted for the pack's numbers.
      *
      * @param signedTransaction the pack's StoreKit purchase, for one the server hasn't recorded yet; may be null
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ClipMedia> media(UUID packId, UUID userId, String signedTransaction) {
         Pack pack = packRepository.findById(packId)
                 .filter(found -> found.getStatus() == PackStatus.PUBLISHED)
@@ -186,6 +190,7 @@ public class PackService {
         if (!pack.isFree() && !purchases.owns(userId, pack, signedTransaction)) {
             throw new ApplicationException("PACK_NOT_PURCHASED", "Buy this pack to download it.");
         }
+        downloadRepository.save(new PackDownload(Ids.uuidV7(clock), packId, userId));
         return clipRepository.findByPackIdOrderByRole(packId).stream()
                 .sorted(Comparator.comparing(Clip::getRole))
                 .map(clip -> new ClipMedia(clip.getRole(), clip.getCaption(), mediaStorage.presignDownload(clip.getVideoKey()),
