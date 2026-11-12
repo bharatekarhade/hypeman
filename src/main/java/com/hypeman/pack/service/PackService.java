@@ -13,6 +13,7 @@ import com.hypeman.pack.model.ClipUpload;
 import com.hypeman.pack.model.ClipUploadedEvent;
 import com.hypeman.pack.model.Pack;
 import com.hypeman.pack.model.PackDownload;
+import com.hypeman.pack.model.PackDownloadStats;
 import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
 import com.hypeman.pack.repository.PackDownloadRepository;
@@ -20,6 +21,7 @@ import com.hypeman.pack.repository.PackRepository;
 import com.hypeman.purchase.service.PurchaseService;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -28,6 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
@@ -196,6 +199,23 @@ public class PackService {
                 .map(clip -> new ClipMedia(clip.getRole(), clip.getCaption(), mediaStorage.presignDownload(clip.getVideoKey()),
                         clip.getAlarmKey() != null ? mediaStorage.presignDownload(clip.getAlarmKey()) : null))
                 .toList();
+    }
+
+    /**
+     * Downloads of every pack, newest pack first, for the admin; a pack nobody downloaded has zeros.
+     *
+     * @param since only count downloads from then on; null counts them all
+     */
+    @Transactional(readOnly = true)
+    public List<PackDownloads> downloadStats(Instant since) {
+        Map<UUID, PackDownloadStats> stats = downloadRepository.statsSince(since != null ? since : Instant.EPOCH).stream()
+                .collect(Collectors.toMap(PackDownloadStats::packId, Function.identity()));
+        return packRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(pack -> new PackDownloads(pack, stats.getOrDefault(pack.getId(), PackDownloadStats.none(pack.getId()))))
+                .toList();
+    }
+
+    public record PackDownloads(Pack pack, PackDownloadStats stats) {
     }
 
     /** The packs with their clips in role order, fetched in two queries however many packs there are. */
