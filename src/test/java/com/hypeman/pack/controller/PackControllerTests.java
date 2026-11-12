@@ -18,6 +18,7 @@ import com.hypeman.pack.model.ClipRole;
 import com.hypeman.pack.model.ClipStatus;
 import com.hypeman.pack.model.Pack;
 import com.hypeman.pack.repository.ClipRepository;
+import com.hypeman.pack.repository.PackDownloadRepository;
 import com.hypeman.pack.service.PackService;
 import com.hypeman.user.model.User;
 import com.hypeman.user.repository.UserRepository;
@@ -59,6 +60,9 @@ class PackControllerTests {
 
     @Autowired
     ClipRepository clips;
+
+    @Autowired
+    PackDownloadRepository downloads;
 
     @Autowired
     UserRepository users;
@@ -123,6 +127,25 @@ class PackControllerTests {
         assertThat(this.<List<String>>read(result, "$.clips[*].alarmUrl"))
                 .hasSize(4)
                 .allMatch(url -> url.matches("https://s3\\.test/packs/" + pack.getId() + "/[a-z]+/alarm-.+\\.caf\\?signed"));
+    }
+
+    @Test
+    void eachDownloadIsCounted() throws Exception {
+        Pack pack = publishedPack();
+
+        media(pack.getId());
+        media(pack.getId());
+
+        assertThat(downloads.countByPackId(pack.getId())).isEqualTo(2);
+    }
+
+    @Test
+    void aRefusedDownloadIsNotCounted() throws Exception {
+        Pack draft = service.createDefaultPack("Draft " + word(), "Not yet", false);
+
+        media(draft.getId());
+
+        assertThat(downloads.countByPackId(draft.getId())).isZero();
     }
 
     @Test
