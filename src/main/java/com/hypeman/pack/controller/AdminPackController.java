@@ -7,13 +7,16 @@ import com.hypeman.pack.model.ClipRole;
 import com.hypeman.pack.model.ClipStatus;
 import com.hypeman.pack.model.ClipUpload;
 import com.hypeman.pack.model.Pack;
+import com.hypeman.pack.model.PackDownloadStats;
 import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.service.PackService;
+import com.hypeman.pack.service.PackService.PackDownloads;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -44,6 +48,12 @@ class AdminPackController {
     @GetMapping("/packs")
     List<AdminPackView> list() {
         return packs.allPacks().stream().map(AdminPackView::of).toList();
+    }
+
+    /** Downloads of every pack, newest pack first. With {@code since}, only downloads from then on count. */
+    @GetMapping("/packs/downloads")
+    List<PackDownloadsView> downloads(@RequestParam(required = false) Instant since) {
+        return packs.downloadStats(since).stream().map(PackDownloadsView::of).toList();
     }
 
     @GetMapping("/packs/{packId}")
@@ -97,6 +107,18 @@ class AdminPackController {
             Pack pack = entry.pack();
             return new AdminPackView(pack.getId(), pack.getSlug(), pack.getTitle(), pack.getDescription(), pack.isExplicit(),
                     pack.isFree(), pack.getProductId(), pack.getStatus(), entry.clips().stream().map(AdminClipView::of).toList());
+        }
+    }
+
+    /** @param people accounts that downloaded it and still exist */
+    record PackDownloadsView(UUID packId, String slug, String title, PackStatus status, long downloads, long people,
+                             Instant lastDownloadedAt) {
+
+        static PackDownloadsView of(PackDownloads entry) {
+            Pack pack = entry.pack();
+            PackDownloadStats stats = entry.stats();
+            return new PackDownloadsView(pack.getId(), pack.getSlug(), pack.getTitle(), pack.getStatus(), stats.downloads(),
+                    stats.people(), stats.lastDownloadedAt());
         }
     }
 
