@@ -14,8 +14,10 @@ import com.hypeman.pack.model.Clip;
 import com.hypeman.pack.model.ClipRole;
 import com.hypeman.pack.model.ClipStatus;
 import com.hypeman.pack.model.Pack;
+import com.hypeman.pack.model.PackDownload;
 import com.hypeman.pack.model.PackStatus;
 import com.hypeman.pack.repository.ClipRepository;
+import com.hypeman.pack.repository.PackDownloadRepository;
 import com.hypeman.pack.repository.PackRepository;
 import com.hypeman.purchase.model.PackPurchase;
 import com.hypeman.purchase.model.VerifiedTransaction;
@@ -67,6 +69,9 @@ class MigrationTests {
 
     @Autowired
     GoalRepository goals;
+
+    @Autowired
+    PackDownloadRepository downloads;
 
     @Autowired
     TransactionTemplate transaction;
@@ -182,6 +187,28 @@ class MigrationTests {
         users.deleteById(user);
 
         assertThat(goals.findById(goal)).isEmpty();
+    }
+
+    @Test
+    void deletingAUserKeepsTheirDownloadsWithoutThem() {
+        UUID user = users.save(new User()).getId();
+        UUID download = downloads.saveAndFlush(new PackDownload(UUID.randomUUID(), savePack(), user)).getId();
+
+        users.deleteById(user);
+
+        PackDownload kept = downloads.findById(download).orElseThrow();
+        assertThat(kept.getUserId()).isNull();
+        assertThat(kept.getDownloadedAt()).isNotNull();
+    }
+
+    @Test
+    void deletingAPackRemovesItsDownloads() {
+        UUID pack = savePack();
+        UUID download = downloads.saveAndFlush(new PackDownload(UUID.randomUUID(), pack, null)).getId();
+
+        packs.deleteById(pack);
+
+        assertThat(downloads.findById(download)).isEmpty();
     }
 
     private static Goal goal(UUID user, UUID goalId) {
