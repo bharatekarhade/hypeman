@@ -10,7 +10,7 @@ struct GoalStoreTests {
     var context: ModelContext { container.mainContext }
 
     init() throws {
-        container = try ModelContainer(for: Goal.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        container = try ModelContainer(for: GoalStore.schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
     @Test func addTrimsAndCapsTitle() throws {

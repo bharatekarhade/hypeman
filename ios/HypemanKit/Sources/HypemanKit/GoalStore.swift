@@ -4,6 +4,9 @@ import WidgetKit
 
 /// One SwiftData store in the App Group, so the app, widgets and intents all see the same goals.
 public enum GoalStore {
+    /// Goals, and the deletions that haven't synced yet.
+    public static let schema = Schema([Goal.self, GoalDeletion.self])
+
     public static let container: ModelContainer = {
         let configuration = if let url = AppGroup.containerURL {
             ModelConfiguration(url: url.appending(path: "Goals.store"))
@@ -11,7 +14,7 @@ public enum GoalStore {
             ModelConfiguration()
         }
         do {
-            return try ModelContainer(for: Goal.self, configurations: configuration)
+            return try ModelContainer(for: schema, configurations: configuration)
         } catch {
             fatalError("Could not open the goal store: \(error)")
         }
