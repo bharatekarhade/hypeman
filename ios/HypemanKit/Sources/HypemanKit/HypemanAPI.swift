@@ -37,6 +37,21 @@ public struct HypemanAPI: Sendable {
         try await send("POST", "v1/purchases", body: ["signedTransaction": signedTransaction], token: accessToken)
     }
 
+    /// The most goals one push may carry.
+    public static let maxGoalsPerPush = 500
+
+    /// The goals changed after `since`, deletions included, or with no `since`, every goal the account has. Pass the
+    /// page's cursor as `since` next time.
+    public func goals(since: Date?, accessToken: String) async throws -> GoalPage {
+        let query = since.map { [URLQueryItem(name: "since", value: Self.instant($0))] } ?? []
+        return try await send("GET", "v1/goals", query: query, token: accessToken)
+    }
+
+    /// Up to `maxGoalsPerPush` changes. The server keeps whichever change to a goal is newest, so sending one twice is fine.
+    public func pushGoals(_ goals: [RemoteGoal], accessToken: String) async throws {
+        let _: Empty = try await send("PUT", "v1/goals", body: ["goals": goals], token: accessToken)
+    }
+
     /// Signs in with the identity token Apple returned, which carries the SHA-256 of `nonce`. A device has one account
     /// at a time: whoever was signed in on it before is signed out there.
     public func signInWithApple(identityToken: String, nonce: String, deviceID: UUID) async throws -> SignInResponse {
@@ -73,7 +88,7 @@ public struct HypemanAPI: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(body)
+            request.httpBody = try Self.encoder.encode(body)
         }
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -104,6 +119,20 @@ public struct HypemanAPI: Sendable {
         }
         return decoder
     }()
+
+    /// Instants go as ISO 8601 in UTC, to the millisecond, as the server expects.
+    private static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(instant(date))
+        }
+        return encoder
+    }()
+
+    private static func instant(_ date: Date) -> String {
+        date.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+    }
 
     /// For 202 and 204 responses.
     private struct Empty: Decodable {}
@@ -155,6 +184,41 @@ public struct Entitlements: Decodable, Equatable, Sendable {
     public init(packIds: [UUID]) {
         self.packIds = packIds
     }
+}
+
+/// A goal as the server has it, or its deletion. The id is the one this app gave the goal.
+public struct RemoteGoal: Codable, Equatable, Sendable {
+    public var id: UUID
+    /// Nil for a deletion.
+    public var title: String?
+    /// Nil for a deletion.
+    public var sortIndex: Int?
+    public var reminderAt: Date?
+    public var startedAt: Date?
+    public var completedAt: Date?
+    public var motivatorId: String?
+    /// When the change was made, on whichever device made it.
+    public var changedAt: Date
+    public var deleted: Bool
+
+    public init(id: UUID, title: String?, sortIndex: Int?, reminderAt: Date?, startedAt: Date?, completedAt: Date?,
+                motivatorId: String?, changedAt: Date, deleted: Bool) {
+        self.id = id
+        self.title = title
+        self.sortIndex = sortIndex
+        self.reminderAt = reminderAt
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+        self.motivatorId = motivatorId
+        self.changedAt = changedAt
+        self.deleted = deleted
+    }
+}
+
+public struct GoalPage: Decodable, Sendable {
+    public let goals: [RemoteGoal]
+    /// Pass as `since` on the next pull.
+    public let cursor: Date
 }
 
 public struct APIError: Error, Decodable, Equatable, LocalizedError, Sendable {
