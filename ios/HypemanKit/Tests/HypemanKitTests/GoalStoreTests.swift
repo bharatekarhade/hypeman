@@ -107,6 +107,32 @@ struct GoalStoreTests {
         #expect(goal.completedAt == nil)
     }
 
+    @Test func anEditMarksTheGoalForUpload() throws {
+        try GoalStore.add(title: "Leg day", in: context)
+        let goal = try #require(try GoalStore.remaining(in: context).first)
+        #expect(goal.needsUpload)
+        goal.needsUpload = false
+        goal.changedAt = .distantPast
+        try context.save()
+
+        try GoalStore.rename(goal.id, title: "Leg day, heavy", in: context)
+
+        #expect(goal.needsUpload)
+        #expect(goal.changedAt.timeIntervalSinceNow > -5)
+    }
+
+    @Test func deletingAGoalLeavesADeletionToUpload() throws {
+        try GoalStore.add(title: "Leg day", in: context)
+        let goal = try #require(try GoalStore.remaining(in: context).first)
+        let id = goal.id
+
+        try GoalStore.delete(goal, in: context)
+
+        let deletions = try context.fetch(FetchDescriptor<GoalDeletion>())
+        #expect(deletions.map(\.goalID) == [id])
+        #expect(try GoalStore.remaining(in: context).isEmpty)
+    }
+
     @Test func renameRejectsBlankAndPreservesGoalIdentity() throws {
         try GoalStore.add(title: "Leg day", in: context)
         let goal = try #require(try GoalStore.remaining(in: context).first)
