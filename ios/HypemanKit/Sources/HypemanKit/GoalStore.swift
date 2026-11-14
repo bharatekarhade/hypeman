@@ -127,12 +127,16 @@ public enum GoalStore {
         AppLock.sync(in: context)
     }
 
-    /// Every goal this save adds or changes goes up at the next sync, as the newest version of it.
+    /// Every goal this save adds or changes goes up at the next sync, as the newest version of it, and every goal it
+    /// deletes leaves a GoalDeletion behind to tell the server.
     private static func markForUpload(in context: ModelContext) {
         let now = Date.now
         for goal in (context.insertedModelsArray + context.changedModelsArray).compactMap({ $0 as? Goal }) {
             goal.changedAt = now
             goal.needsUpload = true
+        }
+        for goal in context.deletedModelsArray.compactMap({ $0 as? Goal }) {
+            context.insert(GoalDeletion(goalID: goal.id, deletedAt: now))
         }
     }
 }
