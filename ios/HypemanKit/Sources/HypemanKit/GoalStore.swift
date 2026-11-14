@@ -114,6 +114,7 @@ public enum GoalStore {
     }
 
     private static func save(_ context: ModelContext) throws {
+        markForUpload(in: context)
         do {
             try context.save()
         } catch {
@@ -124,5 +125,14 @@ public enum GoalStore {
         Reminders.sync(in: context)
         LiveActivities.sync(in: context)
         AppLock.sync(in: context)
+    }
+
+    /// Every goal this save adds or changes goes up at the next sync, as the newest version of it.
+    private static func markForUpload(in context: ModelContext) {
+        let now = Date.now
+        for goal in (context.insertedModelsArray + context.changedModelsArray).compactMap({ $0 as? Goal }) {
+            goal.changedAt = now
+            goal.needsUpload = true
+        }
     }
 }
