@@ -173,6 +173,7 @@ final class FakeAuthServer: @unchecked Sendable {
     struct Request {
         let method: String
         let path: String
+        let query: String?
         let authorization: String?
         let body: [String: String]?
     }
@@ -186,6 +187,7 @@ final class FakeAuthServer: @unchecked Sendable {
         var down = false
         var holdingRefreshes = false
         var refreshWaiting = false
+        var goals: [UUID: RemoteGoal] = [:]
     }
 
     let baseURL: URL
@@ -209,6 +211,12 @@ final class FakeAuthServer: @unchecked Sendable {
     func failRefresh(code: String) { state.withLock { $0.refreshFailure = code } }
     func failMe(code: String) { state.withLock { $0.meFailure = code } }
     func failEverything() { state.withLock { $0.down = true } }
+
+    /// What the account's goals are on the server.
+    var goals: [UUID: RemoteGoal] { state.withLock { $0.goals } }
+
+    /// A goal pushed from another device.
+    func addGoal(_ goal: RemoteGoal) { state.withLock { $0.goals[goal.id] = goal } }
 
     /// Refreshes wait, on the URL loading thread, until released.
     func holdRefreshes() { state.withLock { $0.holdingRefreshes = true } }
@@ -236,11 +244,13 @@ final class FakeAuthServer: @unchecked Sendable {
     }
 
     fileprivate func respond(to request: URLRequest) -> (Int, Data) {
-        let body = request.httpBodyStream.map(Self.read).flatMap { try? JSONDecoder().decode([String: String].self, from: $0) }
+        let data = request.httpBodyStream.map(Self.read)
+        let body = data.flatMap { try? JSONDecoder().decode([String: String].self, from: $0) }
         let path = String(request.url!.path().dropFirst())
         let authorization = request.value(forHTTPHeaderField: "Authorization")
         return state.withLock { state in
-            state.requests.append(Request(method: request.httpMethod ?? "GET", path: path, authorization: authorization, body: body))
+            state.requests.append(Request(method: request.httpMethod ?? "GET", path: path, query: request.url!.query(),
+                                          authorization: authorization, body: body))
             if state.down {
                 return Self.error(503, "HTTP_503")
             }
@@ -267,11 +277,41 @@ final class FakeAuthServer: @unchecked Sendable {
                 return (200, Self.json(["user": ["id": "0192d1a4-0000-7000-8000-000000000001"], "identities": [["provider": "APPLE", "email": "me@example.com"]]]))
             case "v1/auth/logout":
                 return (204, Data())
+            case "v1/goals" where request.httpMethod == "PUT":
+                let pushed = data.flatMap { try? Self.goalDecoder.decode([String: [RemoteGoal]].self, from: $0) }?["goals"] ?? []
+                for goal in pushed {
+                    state.goals[goal.id] = goal
+                }
+                return (204, Data())
+            case "v1/goals":
+                let page = try! Self.goalEncoder.encode(Page(goals: Array(state.goals.values), cursor: Date(timeIntervalSince1970: 1_800_000_000)))
+                return (200, page)
             default:
                 return Self.error(404, "NOT_FOUND")
             }
         }
     }
+
+    /// Every goal it has, whatever the cursor.
+    private struct Page: Encodable {
+        let goals: [RemoteGoal]
+        let cursor: Date
+    }
+
+    private static let goalDecoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let text = try decoder.singleValueContainer().decode(String.self)
+            return try Date(text, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+        }
+        return decoder
+    }()
+
+    private static let goalEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
 
     private static func pair(_ n: Int, user: Bool) -> [String: Any] {
         var pair: [String: Any] = ["accessToken": "access-\(n)", "accessTokenExpiresAt": "2027-01-15T08:15:00.123456Z", "refreshToken": "refresh-\(n)"]
