@@ -121,6 +121,15 @@ public enum GoalStore {
             context.rollback()
             throw error
         }
+        didChange(in: context)
+        NotificationCenter.default.post(name: edited, object: nil)
+    }
+
+    /// Posted in the process that made the edit, after the user changed goals. Not for changes that came from sync.
+    public static let edited = Notification.Name("GoalStore.edited")
+
+    /// Brings the widgets, reminders, Live Activities and the app lock up to date with the goals.
+    static func didChange(in context: ModelContext) {
         WidgetCenter.shared.reloadAllTimelines()
         Reminders.sync(in: context)
         LiveActivities.sync(in: context)
