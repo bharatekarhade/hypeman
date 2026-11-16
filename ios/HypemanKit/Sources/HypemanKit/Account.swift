@@ -71,7 +71,7 @@ public final class Account {
         try await authorized { [api] token in try await api.me(accessToken: token) }
     }
 
-    /// Signed out once the server has accepted; it removes the rest within 30 days.
+    /// Signed out once the server has accepted; by then it has deleted everything it kept for the account.
     public func deleteAccount(appleAuthorizationCode: String?) async throws {
         try await authorized { [api] token in
             try await api.deleteAccount(appleAuthorizationCode: appleAuthorizationCode, accessToken: token)

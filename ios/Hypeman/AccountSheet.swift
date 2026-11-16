@@ -40,7 +40,7 @@ struct AccountSheet: View {
         .confirmationDialog("Delete your account?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete account", role: .destructive) { Task { await deleteAccount() } }
         } message: {
-            Text("You’ll confirm with Apple. Your account goes now and everything the server keeps for it within 30 days. Your goals stay on this iPhone.")
+            Text("You’ll confirm with Apple. Your account and everything the server keeps for it go now, including the backup of your goals. Your goals stay on this iPhone.")
         }
         .alert("Something went wrong", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
