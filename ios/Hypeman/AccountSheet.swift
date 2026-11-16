@@ -127,6 +127,8 @@ struct AccountSheet: View {
             try await account.signInWithApple(identityToken: credential.token, nonce: nonce.raw, appleUserID: credential.user)
             // Purchases this Apple ID already made, e.g. before reinstalling.
             try? await Store.shared.reportCurrentEntitlements()
+            // The goals here join the account, and its goals from other devices come down.
+            await GoalSync.shared.sync()
         } catch {
             show(error)
         }
