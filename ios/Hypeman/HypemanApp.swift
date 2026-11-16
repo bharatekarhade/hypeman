@@ -15,6 +15,7 @@ struct HypemanApp: App {
         MotivatorLibrary.shared.migrateActivePack()
         // Catch up on anything that changed while the app wasn't running, such as a reminder that already went off.
         Reminders.sync(in: GoalStore.container.mainContext)
+        GoalSync.shared.syncAfterEdits()
     }
 
     var body: some Scene {
@@ -29,7 +30,11 @@ struct HypemanApp: App {
                 LiveActivities.sync(in: GoalStore.container.mainContext)
                 // Lowers the lock if Screen Time permission was revoked in Settings meanwhile.
                 AppLock.sync(in: GoalStore.container.mainContext)
-                Task { await Account.shared.checkAppleCredential() }
+                Task {
+                    await Account.shared.checkAppleCredential()
+                    // Picks up edits from the widgets and other devices, and anything that failed to go up last time.
+                    await GoalSync.shared.sync()
+                }
             }
         }
     }
