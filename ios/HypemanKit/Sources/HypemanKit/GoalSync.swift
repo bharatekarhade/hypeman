@@ -28,6 +28,8 @@ public final class GoalSync {
     private let defaults: UserDefaults
     @ObservationIgnored private var running: Task<Void, Never>?
     @ObservationIgnored private var runAgain = false
+    @ObservationIgnored private var scheduled: Task<Void, Never>?
+    @ObservationIgnored private var editObserver: (any NSObjectProtocol)?
     private let log = Logger(subsystem: "com.hypeman.app", category: "GoalSync")
 
     public init(account: Account, api: HypemanAPI, container: ModelContainer, defaults: UserDefaults = .standard) {
@@ -54,6 +56,26 @@ public final class GoalSync {
         }
         running = task
         await task.value
+    }
+
+    /// Syncs a couple of seconds after the last call, so a burst of edits (a reorder, say) goes up in one push.
+    public func scheduleSync() {
+        scheduled?.cancel()
+        scheduled = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            await self?.sync()
+        }
+    }
+
+    /// Schedules a sync after every edit made in this process. Call once, when the app launches.
+    public func syncAfterEdits() {
+        guard editObserver == nil else { return }
+        editObserver = NotificationCenter.default.addObserver(forName: GoalStore.edited, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.scheduleSync()
+            }
+        }
     }
 
     private func syncOnce() async {
