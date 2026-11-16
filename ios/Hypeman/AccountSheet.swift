@@ -8,6 +8,7 @@ import SwiftUI
 struct AccountSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var account = Account.shared
+    @State private var goalSync = GoalSync.shared
     @State private var me: Me?
     @State private var nonce = Nonce()
     @State private var busy = false
@@ -81,6 +82,7 @@ struct AccountSheet: View {
             .padding(16)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.line))
+            backup
             Button {
                 Task {
                     busy = true
@@ -99,6 +101,39 @@ struct AccountSheet: View {
                 .font(Theme.text(15, weight: .bold, relativeTo: .subheadline))
                 .frame(maxWidth: .infinity, minHeight: 44)
         }
+    }
+
+    /// Where the goals' backup stands. Tapping syncs now, which is how to retry after a failure.
+    private var backup: some View {
+        Button {
+            Task { await goalSync.sync() }
+        } label: {
+            HStack(spacing: 8) {
+                switch goalSync.status {
+                case .idle:
+                    Image(systemName: "icloud")
+                    Text("Your goals back up to your account")
+                case .syncing:
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Backing up your goals…")
+                case .synced(let date):
+                    Image(systemName: "checkmark.icloud")
+                    Text("Goals backed up \(date, style: .relative) ago")
+                case .failed(let message):
+                    Image(systemName: "exclamationmark.icloud")
+                    Text("Couldn’t back up your goals. \(message)")
+                }
+                Spacer(minLength: 0)
+            }
+            .font(Theme.text(13, weight: .bold, relativeTo: .footnote))
+            .foregroundStyle(Theme.muted)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(goalSync.status == .syncing)
+        .accessibilityHint("Backs up your goals now")
     }
 
     /// App Review wants the privacy policy reachable in the app, signed in or out.
