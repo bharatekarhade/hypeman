@@ -4,7 +4,7 @@ import Observation
 import OSLog
 import Security
 
-/// Who is signed in, and their tokens. Goals never need an account; it's for things the server keeps per person.
+/// Who is signed in, and their tokens. Goals work without an account; signed in, they back up to it (see GoalSync).
 public struct Session: Codable, Equatable, Sendable {
     public var accessToken: String
     public var accessTokenExpiresAt: Date
