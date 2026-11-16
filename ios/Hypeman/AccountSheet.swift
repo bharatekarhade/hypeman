@@ -4,7 +4,8 @@ import HypemanKit
 import OSLog
 import SwiftUI
 
-/// Sign in with Apple, and out again, or delete the account. Goals stay on the phone either way.
+/// Sign in with Apple, and out again, or delete the account. Signed in, goals back up to the account; they stay on the
+/// phone either way.
 struct AccountSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var account = Account.shared
@@ -50,7 +51,7 @@ struct AccountSheet: View {
 
     private var signedOut: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Sign in to keep things that belong to you, not this phone. Your goals stay on this iPhone either way.")
+            Text("Sign in to back up your goals and get them on your other devices. They work on this iPhone either way.")
                 .font(Theme.text(16, relativeTo: .subheadline))
                 .foregroundStyle(Theme.muted)
             SignInWithAppleButton(.signIn) { request in
