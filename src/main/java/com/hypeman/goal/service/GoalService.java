@@ -27,6 +27,8 @@ public class GoalService {
 
     public static final int MAX_TITLE_LENGTH = 80;
     public static final int MAX_MOTIVATOR_ID_LENGTH = 100;
+    /** Goals an account may have at once, deleted ones aside. Far more than anyone keeps; it stops a runaway client. */
+    public static final int MAX_GOALS = 1_000;
     /** Longer than any push takes to commit. */
     static final Duration SYNC_OVERLAP = Duration.ofMinutes(1);
 
@@ -61,6 +63,10 @@ public class GoalService {
                         goals.save(goal);
                     }
                 });
+        if (goals.countByUserIdAndDeletedAtIsNull(userId) > MAX_GOALS) {
+            // Thrown inside the transaction, so none of this push is kept.
+            throw new ApplicationException("TOO_MANY_GOALS", "You can have up to " + MAX_GOALS + " goals. Delete some to add more.");
+        }
     }
 
     /**

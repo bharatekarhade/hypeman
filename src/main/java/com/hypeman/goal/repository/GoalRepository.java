@@ -18,5 +18,7 @@ public interface GoalRepository extends JpaRepository<Goal, UUID> {
 
     List<Goal> findByUserIdAndDeletedAtIsNullOrderBySortIndex(UUID userId);
 
+    long countByUserIdAndDeletedAtIsNull(UUID userId);
+
     List<Goal> findByUserIdAndUpdatedAtAfterOrderByUpdatedAt(UUID userId, Instant since);
 }
