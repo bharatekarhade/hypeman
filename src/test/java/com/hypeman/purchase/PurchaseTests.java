@@ -119,7 +119,7 @@ class PurchaseTests {
         Pack other = paidPack();
         UUID user = newUser();
 
-        MvcTestResult result = buy(user, transaction(bought.getProductId(), user, null, null));
+        MvcTestResult result = buy(user, transaction(bought.getProductId(), user, null));
 
         assertThat(result).hasStatusOk();
         assertThat(this.<List<String>>read(result, "$.packIds")).containsExactly(bought.getId().toString());
@@ -132,14 +132,14 @@ class PurchaseTests {
         Pack pack = paidPack();
         UUID user = newUser();
 
-        assertThat(media(pack, user, transaction(pack.getProductId(), user, null, null))).hasStatusOk();
+        assertThat(media(pack, user, transaction(pack.getProductId(), user, null))).hasStatusOk();
     }
 
     @Test
     void downloadingAPackNeedsSignInEvenWithItsTransaction() throws Exception {
         Pack pack = paidPack();
 
-        assertError(guestMedia(pack, transaction(pack.getProductId(), null, null, null)), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
+        assertError(guestMedia(pack, transaction(pack.getProductId(), null, null)), HttpStatus.UNAUTHORIZED, "UNAUTHORIZED");
     }
 
     @Test
@@ -147,17 +147,17 @@ class PurchaseTests {
         Pack pack = paidPack();
         UUID user = newUser();
 
-        assertError(media(pack, user, transaction(paidPack().getProductId(), user, null, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(media(pack, user, transaction(paidPack().getProductId(), user, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test
     void anotherAccountsTransactionDoesNotUnlockAPack() throws Exception {
         Pack pack = paidPack();
         UUID buyer = newUser();
-        String boughtSignedOut = transaction(pack.getProductId(), null, null, null);
+        String boughtSignedOut = transaction(pack.getProductId(), null, null);
         buy(buyer, boughtSignedOut);
 
-        assertError(media(pack, newUser(), transaction(pack.getProductId(), buyer, null, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(media(pack, newUser(), transaction(pack.getProductId(), buyer, null)), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
         assertError(media(pack, newUser(), boughtSignedOut), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
@@ -166,14 +166,14 @@ class PurchaseTests {
         Pack pack = paidPack();
         UUID user = newUser();
 
-        assertError(media(pack, user, transaction(pack.getProductId(), user, null, Instant.now())), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
+        assertError(media(pack, user, transaction(pack.getProductId(), user, Instant.now())), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
     @Test
     void anUnsignedTransactionClaimingToBeFromAppleDoesNotUnlockAPack() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
-        String forged = jws(transactionClaims(pack.getProductId(), user, null, null, "Sandbox"));
+        String forged = jws(transactionClaims(pack.getProductId(), user, null, "Sandbox"));
 
         assertError(media(pack, user, forged), HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_TRANSACTION");
     }
@@ -182,7 +182,7 @@ class PurchaseTests {
     void aPurchaseMadeSignedOutJoinsTheFirstAccountToReportIt() throws Exception {
         Pack pack = paidPack();
         UUID first = newUser();
-        String boughtSignedOut = transaction(pack.getProductId(), null, null, null);
+        String boughtSignedOut = transaction(pack.getProductId(), null, null);
 
         assertThat(buy(first, boughtSignedOut)).hasStatusOk();
 
@@ -194,7 +194,7 @@ class PurchaseTests {
     void aPurchaseFromADeletedAccountRestoresToTheNextAccountToReportIt() throws Exception {
         Pack pack = paidPack();
         UUID deleted = newUser();
-        String bought = transaction(pack.getProductId(), deleted, null, null);
+        String bought = transaction(pack.getProductId(), deleted, null);
         buy(deleted, bought);
         users.deleteById(deleted);
         UUID next = newUser();
@@ -212,13 +212,13 @@ class PurchaseTests {
         Pack pack = paidPack();
         UUID deleted = newUser();
         String originalId = "deleted-" + UUID.randomUUID();
-        String beforeRefund = transaction(pack.getProductId(), deleted, null, null, originalId);
+        String beforeRefund = transaction(pack.getProductId(), deleted, null, originalId);
         buy(deleted, beforeRefund);
         users.deleteById(deleted);
         UUID next = newUser();
         buy(next, beforeRefund);
 
-        notify(transaction(pack.getProductId(), deleted, null, Instant.now(), originalId));
+        notify(transaction(pack.getProductId(), deleted, Instant.now(), originalId));
 
         assertError(media(pack, next), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
         assertError(media(pack, next, beforeRefund), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
@@ -229,10 +229,10 @@ class PurchaseTests {
         Pack pack = paidPack();
         UUID user = newUser();
         String originalId = "guest-" + UUID.randomUUID();
-        String beforeRefund = transaction(pack.getProductId(), null, null, null, originalId);
+        String beforeRefund = transaction(pack.getProductId(), null, null, originalId);
         buy(user, beforeRefund);
 
-        notify(transaction(pack.getProductId(), null, null, Instant.now(), originalId));
+        notify(transaction(pack.getProductId(), null, Instant.now(), originalId));
 
         assertError(media(pack, user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
         assertError(media(pack, user, beforeRefund), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
@@ -242,7 +242,7 @@ class PurchaseTests {
     void reportingThePurchaseAgainChangesNothing() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
-        String transaction = transaction(pack.getProductId(), user, null, null);
+        String transaction = transaction(pack.getProductId(), user, null);
 
         buy(user, transaction);
         MvcTestResult again = buy(user, transaction);
@@ -255,7 +255,7 @@ class PurchaseTests {
     void entitlementsListWhatTheUserOwns() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
-        buy(user, transaction(pack.getProductId(), user, null, null));
+        buy(user, transaction(pack.getProductId(), user, null));
 
         MvcTestResult result = mvc.get().uri("/v1/purchases").header("Authorization", bearer(user)).exchange();
 
@@ -269,7 +269,7 @@ class PurchaseTests {
         UUID buyer = newUser();
         UUID someoneElse = newUser();
 
-        assertError(buy(someoneElse, transaction(pack.getProductId(), buyer, null, null)), HttpStatus.FORBIDDEN, "PURCHASE_ACCOUNT_MISMATCH");
+        assertError(buy(someoneElse, transaction(pack.getProductId(), buyer, null)), HttpStatus.FORBIDDEN, "PURCHASE_ACCOUNT_MISMATCH");
         assertError(media(pack, someoneElse), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
     }
 
@@ -277,14 +277,14 @@ class PurchaseTests {
     void somethingWeDontSellIsRefused() throws Exception {
         UUID user = newUser();
 
-        assertError(buy(user, transaction("com.someone.else.coins", user, null, null)), HttpStatus.UNPROCESSABLE_CONTENT, "UNKNOWN_PRODUCT");
+        assertError(buy(user, transaction("com.someone.else.coins", user, null)), HttpStatus.UNPROCESSABLE_CONTENT, "UNKNOWN_PRODUCT");
     }
 
     @Test
     void anUnsignedTransactionClaimingToBeFromAppleIsRefused() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
-        String forged = jws(transactionClaims(pack.getProductId(), user, null, null, "Sandbox"));
+        String forged = jws(transactionClaims(pack.getProductId(), user, null, "Sandbox"));
 
         assertError(buy(user, forged), HttpStatus.UNPROCESSABLE_CONTENT, "INVALID_TRANSACTION");
         assertError(media(pack, user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
@@ -308,9 +308,9 @@ class PurchaseTests {
         Pack pack = paidPack();
         UUID user = newUser();
         String originalId = "refund-" + UUID.randomUUID();
-        buy(user, transaction(pack.getProductId(), user, null, null, originalId));
+        buy(user, transaction(pack.getProductId(), user, null, originalId));
 
-        assertThat(notify(transaction(pack.getProductId(), user, null, Instant.now(), originalId))).hasStatusOk();
+        assertThat(notify(transaction(pack.getProductId(), user, Instant.now(), originalId))).hasStatusOk();
 
         assertError(media(pack, user), HttpStatus.PAYMENT_REQUIRED, "PACK_NOT_PURCHASED");
         MvcTestResult owned = mvc.get().uri("/v1/purchases").header("Authorization", bearer(user)).exchange();
@@ -322,9 +322,9 @@ class PurchaseTests {
         Pack pack = paidPack();
         UUID user = newUser();
         String originalId = "refund-" + UUID.randomUUID();
-        String beforeRefund = transaction(pack.getProductId(), user, null, null, originalId);
+        String beforeRefund = transaction(pack.getProductId(), user, null, originalId);
         buy(user, beforeRefund);
-        notify(transaction(pack.getProductId(), user, null, Instant.now(), originalId));
+        notify(transaction(pack.getProductId(), user, Instant.now(), originalId));
 
         buy(user, beforeRefund);
         notify(beforeRefund);
@@ -339,26 +339,26 @@ class PurchaseTests {
         Instant firstBought = Instant.now().minus(10, ChronoUnit.DAYS);
         String first = "first-" + UUID.randomUUID();
         String again = "again-" + UUID.randomUUID();
-        buy(user, transaction(pack.getProductId(), user, null, null, first, first, firstBought));
-        notify(transaction(pack.getProductId(), user, null, firstBought.plus(1, ChronoUnit.DAYS), first, first, firstBought));
-        buy(user, transaction(pack.getProductId(), user, null, null, again, again, Instant.now()));
+        buy(user, transaction(pack.getProductId(), user, null, first, first, firstBought));
+        notify(transaction(pack.getProductId(), user, firstBought.plus(1, ChronoUnit.DAYS), first, first, firstBought));
+        buy(user, transaction(pack.getProductId(), user, null, again, again, Instant.now()));
 
-        notify(transaction(pack.getProductId(), user, null, firstBought.plus(1, ChronoUnit.DAYS), first, first, firstBought));
-        buy(user, transaction(pack.getProductId(), user, null, null, first, first, firstBought));
+        notify(transaction(pack.getProductId(), user, firstBought.plus(1, ChronoUnit.DAYS), first, first, firstBought));
+        buy(user, transaction(pack.getProductId(), user, null, first, first, firstBought));
 
         assertThat(media(pack, user)).hasStatusOk();
     }
 
     @Test
     void aNotificationForSomeoneWeDontKnowIsAcknowledgedAndIgnored() throws Exception {
-        assertThat(notify(transaction(paidPack().getProductId(), UUID.randomUUID(), null, null))).hasStatusOk();
+        assertThat(notify(transaction(paidPack().getProductId(), UUID.randomUUID(), null))).hasStatusOk();
     }
 
     @Test
     void aForgedNotificationIsRefused() throws Exception {
         Pack pack = paidPack();
         UUID user = newUser();
-        Map<String, Object> claims = notificationClaims(transaction(pack.getProductId(), user, null, null), "Sandbox");
+        Map<String, Object> claims = notificationClaims(transaction(pack.getProductId(), user, null), "Sandbox");
 
         MvcTestResult result = mvc.post().uri("/v1/app-store/notifications").contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("signedPayload", jws(claims)))).exchange();
@@ -403,17 +403,17 @@ class PurchaseTests {
                 .content(json.writeValueAsString(Map.of("signedTransaction", signedTransaction))).exchange();
     }
 
-    private String transaction(String productId, UUID account, Instant expires, Instant revoked) throws Exception {
-        return transaction(productId, account, expires, revoked, "txn-" + UUID.randomUUID());
+    private String transaction(String productId, UUID account, Instant revoked) throws Exception {
+        return transaction(productId, account, revoked, "txn-" + UUID.randomUUID());
     }
 
-    private String transaction(String productId, UUID account, Instant expires, Instant revoked, String originalId) throws Exception {
-        return transaction(productId, account, expires, revoked, originalId, originalId, Instant.now());
+    private String transaction(String productId, UUID account, Instant revoked, String originalId) throws Exception {
+        return transaction(productId, account, revoked, originalId, originalId, Instant.now());
     }
 
-    private String transaction(String productId, UUID account, Instant expires, Instant revoked, String originalId,
-                               String transactionId, Instant purchased) throws Exception {
-        Map<String, Object> claims = transactionClaims(productId, account, expires, revoked, "Xcode");
+    private String transaction(String productId, UUID account, Instant revoked, String originalId, String transactionId,
+                               Instant purchased) throws Exception {
+        Map<String, Object> claims = transactionClaims(productId, account, revoked, "Xcode");
         claims.put("originalTransactionId", originalId);
         claims.put("transactionId", transactionId);
         claims.put("purchaseDate", purchased.toEpochMilli());
@@ -421,7 +421,7 @@ class PurchaseTests {
     }
 
     /** The fields of a StoreKit JWSTransaction that matter here; no account when bought signed out. */
-    private static Map<String, Object> transactionClaims(String productId, UUID account, Instant expires, Instant revoked, String environment) {
+    private static Map<String, Object> transactionClaims(String productId, UUID account, Instant revoked, String environment) {
         Map<String, Object> claims = new LinkedHashMap<>();
         claims.put("transactionId", "txn-" + UUID.randomUUID());
         claims.put("originalTransactionId", "txn-" + UUID.randomUUID());
@@ -429,14 +429,11 @@ class PurchaseTests {
         claims.put("productId", productId);
         claims.put("purchaseDate", Instant.now().toEpochMilli());
         claims.put("signedDate", Instant.now().toEpochMilli());
-        claims.put("type", expires != null ? "Auto-Renewable Subscription" : "Non-Consumable");
+        claims.put("type", "Non-Consumable");
         if (account != null) {
             claims.put("appAccountToken", account.toString());
         }
         claims.put("environment", environment);
-        if (expires != null) {
-            claims.put("expiresDate", expires.toEpochMilli());
-        }
         if (revoked != null) {
             claims.put("revocationDate", revoked.toEpochMilli());
         }
