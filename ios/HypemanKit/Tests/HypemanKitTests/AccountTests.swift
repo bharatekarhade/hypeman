@@ -185,15 +185,16 @@ final class FakeAuthServer: @unchecked Sendable {
         var refreshFailure: String?
         var meFailure: String?
         var down = false
-        var holdingRefreshes = false
-        var refreshWaiting = false
+        /// Paths whose requests wait until released, and those with a request waiting now.
+        var held: Set<String> = []
+        var waiting: Set<String> = []
         var goals: [UUID: RemoteGoal] = [:]
     }
 
     let baseURL: URL
     let session: URLSession
     private let state = OSAllocatedUnfairLock(initialState: State())
-    private let refreshGate = DispatchSemaphore(value: 0)
+    private let gate = DispatchSemaphore(value: 0)
 
     init() {
         let host = "\(UUID().uuidString.lowercased()).test"
@@ -218,28 +219,35 @@ final class FakeAuthServer: @unchecked Sendable {
     /// A goal pushed from another device.
     func addGoal(_ goal: RemoteGoal) { state.withLock { $0.goals[goal.id] = goal } }
 
-    /// Refreshes wait, on the URL loading thread, until released.
-    func holdRefreshes() { state.withLock { $0.holdingRefreshes = true } }
+    /// Requests to the path, such as "v1/goals", wait on the URL loading thread until released. One at a time.
+    func hold(_ path: String) { state.withLock { _ = $0.held.insert(path) } }
 
-    func releaseRefreshes() {
-        state.withLock { $0.holdingRefreshes = false }
-        refreshGate.signal()
+    func release(_ path: String) {
+        state.withLock { _ = $0.held.remove(path) }
+        gate.signal()
     }
 
-    func refreshArrived() async {
-        while !state.withLock({ $0.refreshWaiting }) {
+    /// Returns once a request to the held path is waiting.
+    func arrived(_ path: String) async {
+        while !state.withLock({ $0.waiting.contains(path) }) {
             try? await Task.sleep(for: .milliseconds(5))
         }
     }
 
+    func holdRefreshes() { hold("v1/auth/refresh") }
+    func releaseRefreshes() { release("v1/auth/refresh") }
+    func refreshArrived() async { await arrived("v1/auth/refresh") }
+
     fileprivate func waitIfHeld(_ request: URLRequest) {
+        let path = String(request.url!.path().dropFirst())
         let held = state.withLock { state in
-            guard state.holdingRefreshes, request.url?.path() == "/v1/auth/refresh" else { return false }
-            state.refreshWaiting = true
+            guard state.held.contains(path) else { return false }
+            state.waiting.insert(path)
             return true
         }
         if held {
-            refreshGate.wait()
+            gate.wait()
+            state.withLock { _ = $0.waiting.remove(path) }
         }
     }
 
