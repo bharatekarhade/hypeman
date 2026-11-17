@@ -119,7 +119,7 @@ public class TransactionVerifier {
 
     private static VerifiedTransaction toVerified(JWSTransactionDecodedPayload transaction) {
         return new VerifiedTransaction(transaction.getTransactionId(), transaction.getOriginalTransactionId(), transaction.getProductId(),
-                transaction.getAppAccountToken(), instant(transaction.getPurchaseDate()), instant(transaction.getExpiresDate()), instant(transaction.getRevocationDate()),
+                transaction.getAppAccountToken(), instant(transaction.getPurchaseDate()), instant(transaction.getRevocationDate()),
                 transaction.getEnvironment().name());
     }
 

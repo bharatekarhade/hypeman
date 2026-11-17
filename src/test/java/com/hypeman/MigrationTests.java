@@ -220,7 +220,7 @@ class MigrationTests {
     private static PackPurchase purchase(UUID user, UUID pack) {
         PackPurchase purchase = new PackPurchase(UUID.randomUUID(), user, pack);
         String id = "txn-" + UUID.randomUUID();
-        purchase.apply(new VerifiedTransaction(id, id, "com.hypeman.pack.coach", user, Instant.now(), null, null, "XCODE"));
+        purchase.apply(new VerifiedTransaction(id, id, "com.hypeman.pack.coach", user, Instant.now(), null, "XCODE"));
         return purchase;
     }
 
