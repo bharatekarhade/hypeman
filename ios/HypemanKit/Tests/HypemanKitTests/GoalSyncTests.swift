@@ -75,6 +75,23 @@ struct GoalSyncTests {
         #expect(pulls[1].query?.hasPrefix("since=2027-01-15T08:00:00") == true)
     }
 
+    @Test func aGoalAddedWhileAPushIsUnderWayStillGoesUp() async throws {
+        try await signIn()
+        try GoalStore.add(title: "Leg day", in: context)
+        server.hold("v1/goals")
+        let first = Task { await sync.sync() }
+        await server.arrived("v1/goals")
+
+        try GoalStore.add(title: "Call mom", in: context)
+        let second = Task { await sync.sync() }
+        server.release("v1/goals")
+        await first.value
+        await second.value
+
+        #expect(Set(server.goals.values.compactMap(\.title)) == ["Leg day", "Call mom"])
+        #expect(try GoalStore.remaining(in: context).allSatisfy { !$0.needsUpload })
+    }
+
     @Test func aFailedSyncKeepsTheChangesForNextTime() async throws {
         try await signIn()
         try GoalStore.add(title: "Leg day", in: context)
