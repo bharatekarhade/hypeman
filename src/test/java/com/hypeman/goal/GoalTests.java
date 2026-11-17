@@ -158,12 +158,18 @@ class GoalTests {
 
     @Test
     void aPushHasAtMost500Goals() throws Exception {
-        UUID user = newUser();
-        Map<String, Object>[] goals = IntStream.range(0, 501)
-                .mapToObj(i -> goal(UUID.randomUUID(), "Goal " + i, i, now()))
-                .toArray(Map[]::new);
+        assertError(push(newUser(), goals(0, 501)), HttpStatus.UNPROCESSABLE_CONTENT, "VALIDATION_FAILED");
+    }
 
-        assertError(push(user, goals), HttpStatus.UNPROCESSABLE_CONTENT, "VALIDATION_FAILED");
+    @Test
+    void anAccountHasAtMost1000Goals() throws Exception {
+        UUID user = newUser();
+        assertThat(push(user, goals(0, 500))).hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(push(user, goals(500, 1000))).hasStatus(HttpStatus.NO_CONTENT);
+
+        assertError(push(user, goals(1000, 1001)), HttpStatus.UNPROCESSABLE_CONTENT, "TOO_MANY_GOALS");
+
+        assertThat(this.<List<Object>>read(pull(user, null), "$.goals")).hasSize(1000);
     }
 
     @Test
@@ -209,6 +215,12 @@ class GoalTests {
         goal.put("sortIndex", sortIndex);
         goal.put("changedAt", changedAt.toString());
         return goal;
+    }
+
+    /** New goals numbered from {@code from} up to but not including {@code to}. */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object>[] goals(int from, int to) {
+        return IntStream.range(from, to).mapToObj(i -> goal(UUID.randomUUID(), "Goal " + i, i, now())).toArray(Map[]::new);
     }
 
     private static Map<String, Object> deletion(UUID id, Instant changedAt) {
